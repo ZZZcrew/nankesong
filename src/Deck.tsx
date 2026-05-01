@@ -38,7 +38,11 @@ export default function Deck({ queue, onKeep, onTrash }: Props) {
 
   useEffect(() => {
     goneRef.current = new Set()
-    api.start((i) => ({ ...stackStyle(i), immediate: false }))
+    api.start((i) => ({
+      from: stackStyle(i + 1),
+      to: stackStyle(i),
+      config: { tension: 300, friction: 30 },
+    }))
   }, [items, api])
 
   const bind = useDrag(
