@@ -50,6 +50,36 @@ export async function fetchRawData(input: FetchRawDataInput): Promise<FetchRawDa
   return mockFetchRawData(input)
 }
 
+// 接口文档 §2:删除原始数据(标记隐藏)
+// 小辈上滑某一条 → 调用此接口告诉后端这条不要给长辈看
+
+export type DeleteRawItemsInput = {
+  item_ids: string[]
+  user_id: string
+}
+
+export type DeleteRawItemsResult = {
+  deleted_count: number
+}
+
+export async function deleteRawItems(
+  input: DeleteRawItemsInput,
+): Promise<DeleteRawItemsResult> {
+  if (USE_REAL_API) {
+    const res = await fetch(`${BASE_URL}/data/raw/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = (await res.json()) as ApiResponse<DeleteRawItemsResult>
+    if (json.code !== 200) throw new Error(json.message || 'unknown error')
+    return json.data
+  }
+  await new Promise((r) => setTimeout(r, 100))
+  return { deleted_count: input.item_ids.length }
+}
+
 // ============== 以下为 mock 实现,接真实后端时可整段删除 ==============
 
 async function mockFetchRawData(input: FetchRawDataInput): Promise<FetchRawDataResult> {

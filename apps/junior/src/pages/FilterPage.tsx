@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Deck from '../filter/Deck'
 import Results from '../filter/Results'
 import type { FeedItem } from '../filter/images'
-import { fetchRawData, type RawItem } from '../api/data'
+import { fetchRawData, deleteRawItems, type RawItem } from '../api/data'
 
 type Phase = 'loading' | 'swiping' | 'done' | 'empty' | 'error'
 
@@ -78,8 +78,15 @@ export default function FilterPage({ onProceed }: Props) {
     setQueue((prev) => prev.slice(1))
   }
 
-  const handleTrash = () => {
+  const handleTrash = (item?: FeedItem) => {
+    const removed = item ?? queue[0]
     setQueue((prev) => prev.slice(1))
+    if (removed) {
+      // 后台 fire-and-forget,不阻塞滑动手感;失败仅打日志,不回滚 UI
+      deleteRawItems({ item_ids: [removed.id], user_id: 'user_junior' }).catch((err) => {
+        console.error('[删除] 失败 item_id=%s:', removed.id, err)
+      })
+    }
   }
 
   const reset = () => {
@@ -151,7 +158,7 @@ export default function FilterPage({ onProceed }: Props) {
             混合来自相机的照片与朋友圈
           </div>
           <div className="actions">
-            <button className="trash" onClick={handleTrash} aria-label="删除">✕</button>
+            <button className="trash" onClick={() => handleTrash()} aria-label="删除">✕</button>
             <button className="keep" onClick={() => handleKeep(queue[0])} aria-label="保留">✓</button>
           </div>
         </>
