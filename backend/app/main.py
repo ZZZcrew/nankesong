@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import agent, data, messages
+from app.config import settings
 from app.models import Base, engine
 
 app = FastAPI(
@@ -9,6 +12,10 @@ app = FastAPI(
     description="代际沟通 AI 助手 - 黑客松版",
     version="1.0.0",
 )
+
+if settings.DATABASE_URL.startswith("sqlite:///"):
+    db_path = Path(settings.DATABASE_URL.removeprefix("sqlite:///"))
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
 Base.metadata.create_all(bind=engine)
 
