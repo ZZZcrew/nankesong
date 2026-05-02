@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNarrationTTS } from '../tts/useNarrationTTS'
 
 type ImageDiaryItem = {
   kind: 'image'
   id: string
   url: string
-  caption: string
 }
 
 type SocialDiaryItem = {
@@ -21,6 +21,7 @@ type Diary = {
   date: string
   title: string
   publishedAt: number
+  narration: string
   items: DiaryItem[]
 }
 
@@ -31,13 +32,30 @@ function loadDiary(): Diary | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Diary
+    const parsed = JSON.parse(raw) as Omit<Partial<Diary>, 'items'> & {
+      items?: Array<Record<string, unknown>>
+    }
     if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) return null
-    // 向后兼容:旧格式的 item 没有 kind 字段,按 image 处理
-    parsed.items = parsed.items.map((it) =>
-      it.kind ? it : ({ ...(it as object), kind: 'image' } as DiaryItem),
-    )
-    return parsed
+    const items: DiaryItem[] = parsed.items.map((it) => {
+      const kind = (it.kind as string | undefined) ?? 'image'
+      if (kind === 'social') {
+        return {
+          kind: 'social',
+          id: String(it.id ?? ''),
+          author: String(it.author ?? ''),
+          time: String(it.time ?? ''),
+          text: String(it.text ?? ''),
+        }
+      }
+      return { kind: 'image', id: String(it.id ?? ''), url: String(it.url ?? '') }
+    })
+    return {
+      date: parsed.date ?? '',
+      title: parsed.title ?? '',
+      publishedAt: parsed.publishedAt ?? 0,
+      narration: parsed.narration ?? '',
+      items,
+    }
   } catch {
     return null
   }
@@ -48,11 +66,14 @@ export default function SeniorView() {
   const [sceneIdx, setSceneIdx] = useState(0)
   const [paused, setPaused] = useState(false)
 
+  const tts = useNarrationTTS(diary?.narration ?? '')
+
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return
       setDiary(loadDiary())
       setSceneIdx(0)
+      setPaused(false)
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -70,6 +91,27 @@ export default function SeniorView() {
   }, [safeIdx, paused, total])
 
   const scene = diary?.items[safeIdx]
+
+  const togglePause = () => {
+    setPaused((p) => {
+      const next = !p
+      if (next) tts.pause()
+      else tts.resume()
+      return next
+    })
+  }
+
+  const replay = () => {
+    setPaused(false)
+    tts.play()
+  }
+
+  const { sentences, activeIdx, status: ttsStatus } = tts
+  const hasNarration = sentences.length > 0
+  const displayIdx = activeIdx < 0 ? 0 : activeIdx
+  const prevSentence = displayIdx > 0 ? sentences[displayIdx - 1] : ''
+  const curSentence = sentences[displayIdx] ?? ''
+  const nextSentence = displayIdx < sentences.length - 1 ? sentences[displayIdx + 1] : ''
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-stone-900 p-3 md:p-5">
@@ -168,11 +210,54 @@ export default function SeniorView() {
                     </div>
                   </div>
 
-                  {scene && (
+                  {/* 字幕区:和 TTS 同步,和图片轮播解耦 */}
+                  {hasNarration && (
+                    <div className="relative mt-3 flex min-h-[6.5rem] w-full max-w-3xl flex-none flex-col items-center justify-center px-4 text-center">
+                      {ttsStatus === 'blocked' ? (
+                        <button
+                          onClick={() => tts.play()}
+                          className="rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-stone-800 active:translate-y-px"
+                        >
+                          点击开始讲述今天的故事
+                        </button>
+                      ) : (
+                        <>
+                          {prevSentence && (
+                            <p className="truncate text-sm leading-tight text-stone-400">
+                              {prevSentence}
+                            </p>
+                          )}
+                          <p
+                            key={displayIdx}
+                            className="my-1 px-2 text-xl font-semibold leading-relaxed tracking-tight text-stone-900 md:text-2xl"
+                          >
+                            {curSentence}
+                          </p>
+                          {nextSentence && (
+                            <p className="truncate text-sm leading-tight text-stone-400">
+                              {nextSentence}
+                            </p>
+                          )}
+                          {ttsStatus === 'ended' && (
+                            <button
+                              onClick={replay}
+                              className="absolute bottom-0 right-2 inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white/90 px-3 py-1 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-white active:translate-y-px"
+                              aria-label="重播今天的故事"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                                <path d="M3 4v5h5" />
+                              </svg>
+                              重播
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {!hasNarration && scene && scene.kind === 'social' && (
                     <p className="mt-3 flex-none px-4 text-center text-lg leading-relaxed text-stone-800 md:text-xl">
-                      {scene.kind === 'image'
-                        ? scene.caption
-                        : `${scene.author}发在朋友圈里`}
+                      {scene.author}发在朋友圈里
                     </p>
                   )}
                 </main>
@@ -194,7 +279,7 @@ export default function SeniorView() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setPaused((p) => !p)}
+                      onClick={togglePause}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-700 transition hover:bg-stone-50 active:translate-y-px"
                       aria-label={paused ? '继续' : '暂停'}
                     >
