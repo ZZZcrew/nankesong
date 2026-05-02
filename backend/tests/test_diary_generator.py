@@ -54,3 +54,20 @@ def test_generate_diary_raises_on_invalid_json():
     import pytest
     with pytest.raises(ValueError, match="diary JSON"):
         generate_diary(_clips(), client)
+
+
+def test_generate_diary_strips_markdown_fences():
+    fake_resp = """```json
+{"title":"包裹在 fence 里","paragraphs":[{"id":"p1","text":"测试","source_clip_ids":[]}],"cover_clip_ids":[]}
+```"""
+    client = FakeDiaryClient(fake_resp)
+    diary = generate_diary(_clips(), client)
+    assert diary["title"] == "包裹在 fence 里"
+
+
+def test_generate_diary_with_no_clips_returns_placeholder():
+    """Empty clips short-circuits without calling the LLM."""
+    client = FakeDiaryClient("SHOULD NOT BE USED")
+    diary = generate_diary([], client)
+    assert diary == {"title": "今天没有素材", "paragraphs": [], "cover_clip_ids": []}
+    assert client.last_prompt is None  # client not called

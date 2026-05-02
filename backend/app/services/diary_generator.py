@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Protocol
 
 
@@ -70,20 +71,38 @@ def _build_prompt(clips: list[dict]) -> str:
     )
 
 
+def _strip_fences(text: str) -> str:
+    """Remove leading ```json / ``` fences and trailing ``` if present."""
+    t = text.strip()
+    t = re.sub(r"^```(?:json)?\s*\n?", "", t)
+    t = re.sub(r"\n?```\s*$", "", t)
+    return t.strip()
+
+
 def generate_diary(clips: list[dict], client: DiaryLLMClient) -> dict:
     if not clips:
         return {"title": "今天没有素材", "paragraphs": [], "cover_clip_ids": []}
 
     prompt = _build_prompt(clips)
     raw = client.generate(prompt)
+    cleaned = _strip_fences(raw)
 
-    start = raw.find("{")
-    end = raw.rfind("}")
+    # Note: returned dict is NOT validated against a schema here.
+    # Callers (e.g. POST /diary/generate router in Task 13) are responsible
+    # for validating before persisting or returning to clients.
+
+    # First try: direct parse of cleaned text
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: extract substring between first { and last }
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"invalid diary JSON: {raw[:200]}")
     try:
-        data = json.loads(raw[start:end + 1])
+        return json.loads(cleaned[start:end + 1])
     except json.JSONDecodeError as e:
-        raise ValueError(f"invalid diary JSON: {e}") from e
-
-    return data
+        raise ValueError(f"invalid diary JSON: {e} | raw={raw[:200]}") from e
