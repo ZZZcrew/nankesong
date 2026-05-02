@@ -13,7 +13,7 @@ export type UseASR = {
   stop: () => void
 }
 
-type AsrResultEvent = { result: { voice_text_str: string }; voice_id?: string }
+type AsrResultEvent = { voice_text_str?: string; voice_id?: string }
 
 // 仅 demo/本地开发用:把 SecretKey 暴露在前端不安全,生产必须走后端 STS。
 // 详见 .env.example 里的说明。
@@ -66,7 +66,7 @@ export function useASR(_lang = 'zh-CN'): UseASR {
     const rec = new WebAudioSpeechRecognizer({
       appid: APPID!,
       secretid: SECRETID!,
-      engine_model_type: '16k_zh_large', // 大模型版,中文效果最好
+      engine_model_type: '16k_zh', // 标准版,5 小时/月免费。大模型版 16k_zh_large 不含免费额度
       voice_format: 1, // PCM
       filter_punc: 0, // 保留标点,方便前端按句分割
       filter_modal: 2, // 过滤语气词
@@ -77,32 +77,40 @@ export function useASR(_lang = 'zh-CN'): UseASR {
     })
 
     rec.OnRecognitionStart = () => {
+      console.log('[Tencent ASR] 开始识别')
       setStatus('listening')
     }
     rec.OnRecognitionResultChange = (res: AsrResultEvent) => {
-      // 中间结果:accum 已稳态 + 当前流式片段
-      setInterim(res.result.voice_text_str)
+      const text = res?.voice_text_str ?? ''
+      console.log('[Tencent ASR] 中间结果:', text, res)
+      setInterim(text)
     }
     rec.OnSentenceEnd = (res: AsrResultEvent) => {
-      // 一句话稳态结束,累积到 accum
-      accumRef.current += res.result.voice_text_str
+      const text = res?.voice_text_str ?? ''
+      console.log('[Tencent ASR] 一句话结束:', text, res)
+      accumRef.current += text
       setFinalTranscript(accumRef.current)
       setInterim('')
     }
     rec.OnRecognitionComplete = () => {
       const finalText = accumRef.current.trim()
+      console.log('[Tencent ASR] 识别结束,完整文本:', finalText)
       const cb = finalizeRef.current
       finalizeRef.current = null
       setStatus('idle')
       if (cb && finalText) cb(finalText)
     }
     rec.OnError = (err: unknown) => {
+      // 打到 console 方便排查:可能是鉴权/网络/麦克风等多种原因
+      console.error('[Tencent ASR] OnError raw:', err)
       const msg =
         typeof err === 'string'
           ? err
           : err && typeof err === 'object' && 'message' in err
             ? String((err as { message: unknown }).message)
-            : '语音识别失败'
+            : err && typeof err === 'object'
+              ? JSON.stringify(err)
+              : '语音识别失败'
       // 麦克风被拒识别成 denied
       if (
         msg.includes('Permission denied') ||

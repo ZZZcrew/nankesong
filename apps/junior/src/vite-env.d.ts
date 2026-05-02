@@ -11,8 +11,7 @@ interface ImportMeta {
 }
 
 declare module 'tencentcloud-speech-sdk-js/app/webaudiospeechrecognizer.js' {
-  type AsrResult = { voice_text_str: string; voice_id?: string }
-  type AsrResultEvent = { result: AsrResult; voice_id?: string }
+  type AsrResultEvent = { voice_text_str?: string; voice_id?: string; slice_type?: number }
 
   export default class WebAudioSpeechRecognizer {
     constructor(params: {

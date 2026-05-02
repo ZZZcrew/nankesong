@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { FeedItem } from '../filter/images'
-import { generateNarration } from '../api/narration'
+import { generateSummary } from '../api/agent'
+import { publishDiary, type DiaryItem } from '../api/diary'
+import { JUNIOR_USER_ID } from '../api/client'
 
 type Props = {
   kept: FeedItem[]
@@ -9,13 +11,15 @@ type Props = {
 
 type SendStatus = 'idle' | 'generating' | 'sending' | 'sent'
 
-const DIARY_TITLE = '小明在南山散步的一天'
-const DIARY_DATE = '2026 年 5 月 2 日 · 星期六'
+const DIARY_DATE = '2026-05-02'
+const DIARY_DATE_LABEL = '2026 年 5 月 2 日 · 星期六'
 
-function fallbackNarration(items: FeedItem[]): string {
-  const socials = items.filter((it) => it.kind === 'social').map((it) => it.text)
-  if (socials.length > 0) return socials.join(' ')
-  return '今天小明过得挺好的，给妈妈分享了几张照片。'
+function toDiaryItems(kept: FeedItem[]): DiaryItem[] {
+  return kept.map((it) =>
+    it.kind === 'image'
+      ? { item_id: it.id, type: 'image', content: it.url }
+      : { item_id: it.id, type: 'social', author: it.author, time: it.time, text: it.text },
+  )
 }
 
 export default function AuditPage({ kept, onBack }: Props) {
@@ -23,32 +27,35 @@ export default function AuditPage({ kept, onBack }: Props) {
 
   const send = async () => {
     setStatus('generating')
+    let title = '今日日记'
     let narration = ''
+    let summaryId = ''
     try {
-      const res = await generateNarration({ date: DIARY_DATE, title: DIARY_TITLE, items: kept })
-      narration = res.text
+      const res = await generateSummary({ date: DIARY_DATE, user_id: JUNIOR_USER_ID })
+      title = res.title
+      narration = res.content
+      summaryId = res.summary_id
     } catch {
-      narration = fallbackNarration(kept)
+      // 兜底:接口失败时用拼接朋友圈文字做 narration,保证发送流程不断
+      const socials = kept.filter((it) => it.kind === 'social').map((it) => it.text)
+      narration = socials.join(' ') || '今天小明过得挺好的，给妈妈分享了几张照片。'
+      summaryId = `sum_local_${Date.now()}`
     }
 
     setStatus('sending')
-    const diary = {
-      date: DIARY_DATE,
-      title: DIARY_TITLE,
-      publishedAt: Date.now(),
-      narration,
-      items: kept.map((it) =>
-        it.kind === 'image'
-          ? { kind: 'image', id: it.id, url: it.url }
-          : { kind: 'social', id: it.id, author: it.author, time: it.time, text: it.text },
-      ),
-    }
     try {
-      localStorage.setItem('nks-diary', JSON.stringify(diary))
+      await publishDiary({
+        summary_id: summaryId,
+        user_id: JUNIOR_USER_ID,
+        _mock_items: toDiaryItems(kept),
+        _mock_title: title,
+        _mock_narration: narration,
+        _mock_date: DIARY_DATE,
+      })
     } catch {
-      // 容错:localStorage 满/被禁;保持发送流程不中断,状态仍然走到 sent
+      // 容错:失败也走 sent,不卡用户
     }
-    setTimeout(() => setStatus('sent'), 400)
+    setTimeout(() => setStatus('sent'), 300)
   }
 
   if (kept.length === 0) {
@@ -80,8 +87,8 @@ export default function AuditPage({ kept, onBack }: Props) {
   return (
     <div className="flex flex-1 flex-col pb-28">
       <header className="mx-auto w-full max-w-2xl px-4 pb-3 pt-6 text-center">
-        <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE} · 即将发送</div>
-        <h1 className="mt-1 text-2xl font-semibold text-stone-900">{DIARY_TITLE}</h1>
+        <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE_LABEL} · 即将发送</div>
+        <h1 className="mt-1 text-2xl font-semibold text-stone-900">小明在南山散步的一天</h1>
         <p className="mt-1 text-sm text-stone-500">
           共 {kept.length} 条内容 · 妈妈将在相框里看到下面的内容
         </p>
@@ -126,7 +133,6 @@ export default function AuditPage({ kept, onBack }: Props) {
         )}
       </main>
 
-      {/* 底部固定发送按钮 */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <button
