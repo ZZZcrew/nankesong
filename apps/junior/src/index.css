@@ -325,3 +325,127 @@ body.filter-active {
   text-align: center;
   padding: 0 24px;
 }
+
+/* ===========================================================
+   长辈端（SeniorView）主题：家书 / 桌面相框
+   - 暖米色画布 + 木框 + 柿色（朱砂）主色
+   - 标题用 Noto Serif SC，正文沿用系统中文字体
+   全部 scoped 在 .senior-stage 之下
+   =========================================================== */
+
+.senior-stage {
+  --paper: #ede4d6;
+  --paper-warm: #f4ecdc;
+  --persimmon: #c2410c;
+  --persimmon-deep: #9a330a;
+  --persimmon-soft: #fdebd5;
+  --ink: #2b1f15;
+  --wood-shadow: rgba(82, 53, 33, 0.22);
+  background: radial-gradient(circle at 50% 18%, #f8f1e2 0%, #ece2cf 42%, #d9c8ac 100%);
+  font-feature-settings: 'palt' 1;
+}
+
+/* 纸张/亚麻肌理：极淡的随机噪点，破除平面感 */
+.senior-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.27  0 0 0 0 0.2  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 200px 200px;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+.senior-title {
+  font-family: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', 'STSong', serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #2b1f15;
+}
+
+.senior-eyebrow {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  font-variant-numeric: tabular-nums;
+}
+
+.senior-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 暖柿色脉冲（替代红色） */
+@keyframes persimmon-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(194, 65, 12, 0.45); }
+  50%      { box-shadow: 0 0 0 24px rgba(194, 65, 12, 0); }
+}
+
+.senior-stage .talk-button {
+  animation: persimmon-pulse 1.8s ease-out infinite;
+  background: linear-gradient(180deg, #d35420 0%, #b13a09 100%);
+  color: #fffbf3;
+  box-shadow: 0 14px 28px -10px rgba(154, 51, 10, 0.55), inset 0 1px 0 rgba(255, 230, 200, 0.35);
+}
+
+.senior-stage .talk-button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #c2410c 0%, #962f06 100%);
+}
+
+.senior-stage .talk-button.is-listening {
+  animation: none;
+  background: linear-gradient(180deg, #9a2d05 0%, #6f1f02 100%);
+  box-shadow: 0 0 0 6px rgba(194, 65, 12, 0.18), 0 14px 24px -10px rgba(110, 30, 5, 0.55);
+}
+
+.senior-stage .talk-button:disabled {
+  animation: none;
+  background: linear-gradient(180deg, #b8a899 0%, #8e7e6f 100%);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 14px -8px rgba(120, 100, 80, 0.4);
+  cursor: not-allowed;
+}
+
+/* 进度条柿色渐变 */
+.senior-stage .progress-fill {
+  background: linear-gradient(90deg, #d97c4b 0%, #c2410c 60%, #9a330a 100%);
+  box-shadow: 0 0 6px rgba(194, 65, 12, 0.35);
+}
+
+/* "正在听" / "思考中" 信息片 */
+.senior-stage .pill-listening {
+  background: var(--persimmon-soft);
+  color: var(--persimmon-deep);
+}
+
+.senior-stage .pill-thinking {
+  background: #fbf1de;
+  color: #8a5a14;
+}
+
+/* 木框纹路：在 inline 渐变之上叠一层径向高光，模拟木材光泽 */
+.senior-stage .wood-grain {
+  position: relative;
+  isolation: isolate;
+}
+
+.senior-stage .wood-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      rgba(58, 31, 16, 0) 0px,
+      rgba(58, 31, 16, 0.06) 1px,
+      rgba(58, 31, 16, 0) 3px,
+      rgba(255, 240, 220, 0.04) 5px,
+      rgba(58, 31, 16, 0) 8px
+    ),
+    radial-gradient(120% 60% at 30% 0%, rgba(255, 244, 222, 0.25) 0%, transparent 60%);
+  mix-blend-mode: overlay;
+  opacity: 0.85;
+}

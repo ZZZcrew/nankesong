@@ -1,0 +1,28 @@
+- generic [ref=e4]:
+  - generic [ref=e10]:
+    - banner [ref=e11]:
+      - generic [ref=e12]: 2026-05-02 · 星期六
+      - heading "小明在南山徒步遇到一只猫的非常非常长的故事大家都很开心" [level=1] [ref=e13]
+    - main [ref=e14]:
+      - generic [ref=e16]:
+        - generic [ref=e19]:
+          - button "第 1 条" [ref=e20] [cursor=pointer]
+          - button "第 2 条" [ref=e21] [cursor=pointer]
+        - generic [ref=e22]: 1 / 2
+    - generic [ref=e23]:
+      - button "跳过讲述" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+        - text: 跳过讲述
+      - paragraph [ref=e27]: 今天下午五点多小明和同事们一起从公司出发慢慢走到南山脚下沿着新铺好的木栈道一路上吹着秋风听着远处的鸟叫感觉整个人都松弛下来一边走一边聊起最近家里的小事还顺手拍了几张照片打算等会发给您看看。
+      - paragraph [ref=e28]: 今天下午五点多小明和同事们一起从公司出发慢慢走到南山脚下沿着新铺好的木栈道一路上吹着秋风听着远处的鸟叫感觉整个人都松弛下来一边走一边聊起最近家里的小事还顺手拍了几张照片打算等会发给您看看。
+    - generic [ref=e29]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: 正在轮播 · 第 1 / 2 条
+        - generic [ref=e33]: 每 10 秒切换
+      - button "暂停" [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+  - button "点一下说话 先听完今天的故事,再按住说话" [disabled] [ref=e41]:
+    - img [ref=e43]
+    - generic [ref=e46]:
+      - generic [ref=e47]: 点一下说话
+      - generic [ref=e48]: 先听完今天的故事,再按住说话

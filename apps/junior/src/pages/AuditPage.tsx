@@ -43,20 +43,26 @@ export default function AuditPage({ summary, onBack }: Props) {
   const safeIdx = covers.length > 0 ? Math.min(coverIdx, covers.length - 1) : 0
 
   return (
-    <div className="flex flex-1 flex-col bg-[#fbf8f2] pb-28">
-      <header className="mx-auto w-full max-w-2xl px-4 pb-3 pt-6 text-center">
-        <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE_LABEL} · 即将发送</div>
-        <h1 className="mt-1 font-serif text-2xl font-semibold leading-tight tracking-tight text-stone-900 md:text-[28px]">
+    <div className="senior-stage relative flex flex-1 flex-col pb-28">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[40vh] bg-[radial-gradient(circle_at_50%_-10%,_rgba(255,250,238,0.85),_transparent_70%)]" />
+
+      <header className="relative z-10 mx-auto w-full max-w-2xl px-4 pb-4 pt-8 text-center">
+        <div className="senior-eyebrow text-[10px] uppercase text-[#9a330a]">
+          {DIARY_DATE_LABEL} · 即将寄出
+        </div>
+        <h1 className="senior-title mt-2 text-2xl leading-tight text-stone-900 [text-wrap:balance] md:text-[28px]">
           {summary.title}
         </h1>
-        <p className="mt-1 text-xs text-stone-500">妈妈在相框里会看到下面这封信</p>
+        <p className="mt-2 text-xs text-stone-500">妈妈在相框里会看到下面这封信</p>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4">
-        {/* 封面图轮播 */}
+      <main className="relative z-10 mx-auto w-full max-w-2xl flex-1 space-y-5 px-4">
+        {/* 封面图 · 装裱在浅色相框里 */}
         {covers.length > 0 && (
-          <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-            <div className="relative aspect-[3/2] bg-[#f6f1e5]">
+          <section
+            className="overflow-hidden rounded-[1.1rem] border border-[#e9d9bf] bg-gradient-to-br from-white to-[#fbf2dd] p-2.5 shadow-[0_18px_36px_-22px_rgba(154,51,10,0.3)]"
+          >
+            <div className="relative aspect-[3/2] overflow-hidden rounded-[0.6rem] bg-[#f6f1e5] shadow-[inset_0_0_0_1px_rgba(120,95,69,0.12)]">
               {covers.map((url, i) => (
                 <img
                   key={i}
@@ -69,7 +75,7 @@ export default function AuditPage({ summary, onBack }: Props) {
               ))}
               {covers.length > 1 && (
                 <>
-                  <div className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-0.5 text-xs text-white backdrop-blur">
+                  <div className="senior-tabular absolute right-3 top-3 rounded-full bg-[#2b1f15]/55 px-2.5 py-0.5 text-xs text-white backdrop-blur">
                     {safeIdx + 1} / {covers.length}
                   </div>
                   <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2">
@@ -90,39 +96,53 @@ export default function AuditPage({ summary, onBack }: Props) {
           </section>
         )}
 
-        {/* 家书正文 */}
-        <section className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-sm">
+        {/* 家书正文 · 信笺 */}
+        <section className="relative overflow-hidden rounded-[1.1rem] border border-[#e9d9bf] bg-gradient-to-br from-white via-[#fdf7ea] to-[#fbeed5] shadow-[0_18px_36px_-22px_rgba(154,51,10,0.3)]">
           <div className="flex items-stretch">
-            <div className="w-1.5 flex-none bg-amber-600" aria-hidden="true" />
-            <div className="flex-1 px-5 py-5">
-              <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-amber-700">
-                AI 替你写的小作文
+            <div className="w-1.5 flex-none bg-gradient-to-b from-[#c2410c] to-[#9a330a]" aria-hidden="true" />
+            <div className="flex-1 px-5 py-6 md:px-7">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="senior-eyebrow text-[10px] uppercase text-[#9a330a]">
+                  AI · 代笔
+                </div>
+                <span
+                  aria-hidden="true"
+                  className="senior-tabular hidden items-center gap-1 rounded-md border border-[#c2410c]/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.18em] text-[#9a330a] sm:inline-flex"
+                >
+                  PREVIEW
+                </span>
               </div>
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-stone-800">
+              <p className="senior-title whitespace-pre-line text-[16px] font-medium leading-[1.85] tracking-[0.01em] text-stone-800 md:text-[17px]">
                 {summary.content}
               </p>
+              <div className="mt-5 flex items-center justify-end gap-2 text-xs text-stone-500">
+                <span className="h-px w-8 bg-stone-300/70" aria-hidden="true" />
+                <span>—— 小明 敬上</span>
+              </div>
             </div>
           </div>
         </section>
 
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-stone-200 bg-white/95 backdrop-blur">
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[#e9d9bf]/70 bg-[#fbf6ea]/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <button
             onClick={onBack}
             disabled={busy}
-            className="rounded-xl border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 active:translate-y-px disabled:opacity-40"
+            className="rounded-xl border border-stone-300 bg-white/80 px-4 py-3 text-sm font-medium text-stone-700 transition hover:border-[#c2410c]/30 hover:text-[#9a330a] active:translate-y-px disabled:opacity-40"
           >
             ← 返回
           </button>
           <button
             onClick={send}
             disabled={busy}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold tracking-tight text-white shadow-sm transition active:translate-y-px disabled:opacity-80 ${
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold tracking-tight text-white transition active:translate-y-px disabled:cursor-not-allowed ${
               status === 'sent'
-                ? 'bg-emerald-500'
-                : 'bg-amber-600 shadow-amber-600/20 hover:bg-amber-700'
+                ? 'bg-gradient-to-b from-[#3f8a4f] to-[#2d6a3a] shadow-[0_10px_22px_-10px_rgba(45,106,58,0.55)]'
+                : status === 'sending'
+                  ? 'bg-gradient-to-b from-[#b8a899] to-[#8e7e6f] shadow-none'
+                  : 'bg-gradient-to-b from-[#d35420] to-[#9a330a] shadow-[0_12px_24px_-10px_rgba(154,51,10,0.55)] hover:from-[#c2410c] hover:to-[#7a2705]'
             }`}
           >
             {status === 'idle' && (
@@ -131,10 +151,17 @@ export default function AuditPage({ summary, onBack }: Props) {
                   <path d="M22 2 11 13" />
                   <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
                 </svg>
-                发送给妈妈
+                寄到妈妈的相框
               </>
             )}
-            {status === 'sending' && '发送中…'}
+            {status === 'sending' && (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+                </svg>
+                投递中…
+              </>
+            )}
             {status === 'sent' && (
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

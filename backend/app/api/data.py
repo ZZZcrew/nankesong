@@ -39,7 +39,7 @@ def get_raw(
     rows = (
         db.query(RawData)
         .filter(
-            RawData.status == "pending",
+            RawData.status != "deleted",
             RawData.created_at >= start,
             RawData.created_at < end,
         )
@@ -75,7 +75,7 @@ def delete_raw(req: DeleteRequest, db: Session = Depends(get_db)):
 
     hits = (
         db.query(RawData)
-        .filter(RawData.item_id.in_(req.item_ids), RawData.status == "pending")
+        .filter(RawData.item_id.in_(req.item_ids), RawData.status != "deleted")
         .all()
     )
     for h in hits:

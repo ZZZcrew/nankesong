@@ -1,0 +1,7 @@
+- generic [ref=e10]:
+  - generic [ref=e13]:
+    - img [ref=e15]
+    - heading "等待小辈发来今日日记…" [level=2] [ref=e19]
+  - generic [ref=e20]:
+    - paragraph [ref=e21]: 他还在整理今天的照片，完成后会自动出现在这里。
+    - button "加载示例日记（测试用）" [ref=e22] [cursor=pointer]

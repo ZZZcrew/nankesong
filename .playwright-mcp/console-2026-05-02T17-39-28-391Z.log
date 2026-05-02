@@ -1,0 +1,10 @@
+[     155ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[     316ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[     329ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[    2795ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[    9381ms] [LOG] [Tencent TTS] 合成句子: 走到山腰的观景台时，城里的灯正一盏一盏亮起来，远远看像一条发光的带子。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[   16202ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[   16229ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多小明和同事们一起从公司出发慢慢走到南山脚下沿着新铺好的木栈道一路上吹着秋风听着远处的鸟叫感觉整个人都松弛下来一边走一边聊起最近家里的小事还顺手拍了几张照片打算等会发给您看看。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[   23338ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[   43291ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多小明和同事们一起从公司出发慢慢走到南山脚下沿着新铺好的木栈道一路上吹着秋风听着远处的鸟叫感觉整个人都松弛下来一边走一边聊起最近家里的小事还顺手拍了几张照片打算等会发给您看看。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[   68379ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多小明和同事们一起从公司出发慢慢走到南山脚下沿着新铺好的木栈道一路上吹着秋风听着远处的鸟叫感觉整个人都松弛下来一边走一边聊起最近家里的小事还顺手拍了几张照片打算等会发给您看看。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44

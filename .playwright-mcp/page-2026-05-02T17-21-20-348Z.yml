@@ -1,0 +1,29 @@
+- generic [ref=e4]:
+  - generic [ref=e10]:
+    - banner [ref=e23]:
+      - generic [ref=e24]: 2026 年 5 月 2 日 · 星期六
+      - heading "小明在南山散步的一天" [level=1] [ref=e25]
+    - main [ref=e26]:
+      - generic [ref=e28]:
+        - generic [ref=e32]:
+          - button "第 1 条" [ref=e33] [cursor=pointer]
+          - button "第 2 条" [ref=e34] [cursor=pointer]
+          - button "第 3 条" [ref=e35] [cursor=pointer]
+        - generic [ref=e36]: 1 / 3
+    - generic [ref=e37]:
+      - paragraph [ref=e65]: 回家路上他经过一个水果摊，顺手买了一袋橘子，说是明天带去办公室分给大家。
+      - paragraph [ref=e66]: 妈妈，他今天过得挺好的，您放心。
+      - button "重播今天的故事" [ref=e67] [cursor=pointer]:
+        - img [ref=e68]
+        - text: 重播
+    - generic [ref=e43]:
+      - generic [ref=e45]:
+        - generic [ref=e46]: 已暂停 · 第 1 / 3 条
+        - generic [ref=e47]: 每 10 秒切换
+      - button "继续" [ref=e63] [cursor=pointer]:
+        - img [ref=e51]
+  - button "点一下说话 问问题 · 或留言给小明" [ref=e71] [cursor=pointer]:
+    - img [ref=e57]
+    - generic [ref=e60]:
+      - generic [ref=e61]: 点一下说话
+      - generic [ref=e62]: 问问题 · 或留言给小明

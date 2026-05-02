@@ -33,7 +33,7 @@ def generate_summary(
     rows = (
         db.query(RawData)
         .filter(
-            RawData.status == "pending",
+            RawData.status != "deleted",
             RawData.created_at >= start,
             RawData.created_at < end,
         )
@@ -67,8 +67,6 @@ def generate_summary(
         raw_data_ids=json.dumps([r.item_id for r in rows], ensure_ascii=False),
     )
     db.add(diary)
-    for r in rows:
-        r.status = "processed"
     db.commit()
 
     return ApiResponse[DiaryData](

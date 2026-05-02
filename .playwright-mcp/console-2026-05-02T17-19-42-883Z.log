@@ -1,0 +1,32 @@
+[    3645ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[    3719ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[   43106ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[   45753ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[  142714ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[  142860ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  145368ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[  145722ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[  145787ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  148166ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[  155231ms] [LOG] [Tencent TTS] 合成句子: 走到山腰的观景台时，城里的灯正一盏一盏亮起来，远远看像一条发光的带子。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  165031ms] [LOG] [Tencent TTS] 合成句子: 晚饭他和朋友去了山下的老店，点了一锅热气腾腾的火锅，两个人一直聊到很晚。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  174391ms] [LOG] [Tencent TTS] 合成句子: 回家路上他经过一个水果摊，顺手买了一袋橘子，说是明天带去办公室分给大家。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  184191ms] [LOG] [Tencent TTS] 合成句子: 妈妈，他今天过得挺好的，您放心。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  184299ms] [ERROR] Failed to load resource: the server responded with a status of 429 () @ https://api.stepfun.com/v1/audio/speech:0
+[  184300ms] [ERROR] [Tencent TTS] 合成失败,中断本次播报: Stepfun TTS 429: {"error":{"message":"request limited RPM reached, current: 11, limit: 10. Please top up at https://platform.stepfun.com/top-up. Rate limit rules: https://platform.stepfun.com/docs/zh/pricing/details#%E9%98%B6%E6%A2%AF%E9%99%90%E9%80%9F","type":"rate_limited"}} @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:80
+[  217424ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5174/node_modules/.vite/deps/chunk-XPR23Y44.js?v=44ee4737:21548
+[  217443ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  219791ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5174/favicon.ico:0
+[  226266ms] [LOG] [Tencent TTS] 合成句子: 走到山腰的观景台时，城里的灯正一盏一盏亮起来，远远看像一条发光的带子。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  236626ms] [LOG] [Tencent TTS] 合成句子: 晚饭他和朋友去了山下的老店，点了一锅热气腾腾的火锅，两个人一直聊到很晚。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  246586ms] [LOG] [Tencent TTS] 合成句子: 回家路上他经过一个水果摊，顺手买了一袋橘子，说是明天带去办公室分给大家。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  255926ms] [LOG] [Tencent TTS] 合成句子: 妈妈，他今天过得挺好的，您放心。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  308310ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  317648ms] [LOG] [Tencent TTS] 合成句子: 走到山腰的观景台时，城里的灯正一盏一盏亮起来，远远看像一条发光的带子。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  320442ms] [LOG] [Tencent TTS] 合成句子: 今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  329908ms] [LOG] [Tencent TTS] 合成句子: 走到山腰的观景台时，城里的灯正一盏一盏亮起来，远远看像一条发光的带子。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  340108ms] [LOG] [Tencent TTS] 合成句子: 晚饭他和朋友去了山下的老店，点了一锅热气腾腾的火锅，两个人一直聊到很晚。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  349348ms] [LOG] [Tencent TTS] 合成句子: 回家路上他经过一个水果摊，顺手买了一袋橘子，说是明天带去办公室分给大家。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  357988ms] [LOG] [Tencent TTS] 合成句子: 妈妈，他今天过得挺好的，您放心。 @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:44
+[  358092ms] [ERROR] Failed to load resource: the server responded with a status of 429 () @ https://api.stepfun.com/v1/audio/speech:0
+[  358093ms] [ERROR] [Tencent TTS] 合成失败,中断本次播报: Stepfun TTS 429: {"error":{"message":"request limited RPM reached, current: 11, limit: 10. Please top up at https://platform.stepfun.com/top-up. Rate limit rules: https://platform.stepfun.com/docs/zh/pricing/details#%E9%98%B6%E6%A2%AF%E9%99%90%E9%80%9F","type":"rate_limited"}} @ http://localhost:5174/src/tts/useCloudTTS.ts?t=1777737832903:80

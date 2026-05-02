@@ -62,11 +62,6 @@ const FRAME_CAPTION_STYLE = {
   boxShadow: '0 10px 22px rgba(96,71,49,0.08), inset 0 1px 0 rgba(255,255,255,0.88)',
 }
 
-const FRAME_STAND_STYLE = {
-  background: 'linear-gradient(180deg, #986540 0%, #744624 100%)',
-  boxShadow: '0 14px 22px rgba(82,53,33,0.22), inset 0 1px 0 rgba(255,239,215,0.2)',
-}
-
 function loadDiary(): Diary | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -221,16 +216,16 @@ export default function SeniorView() {
   const asrPreview = (asr.finalTranscript + asr.interim).trim()
 
   return (
-    <div className="relative h-[100dvh] overflow-hidden bg-[#ece4db] text-stone-800">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.88),_rgba(255,255,255,0.4)_36%,_transparent_74%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26vh] bg-gradient-to-b from-[#b9895f] via-[#99643d] to-[#744623]" />
-      <div className="pointer-events-none absolute bottom-[13vh] left-1/2 h-20 w-[78vw] max-w-[940px] -translate-x-1/2 rounded-full bg-black/15 blur-3xl" />
+    <div className="senior-stage relative h-[100dvh] overflow-hidden text-stone-800">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,250,238,0.72),_rgba(255,250,238,0.25)_38%,_transparent_74%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[26vh] bg-gradient-to-b from-[#b9895f] via-[#8c5a32] to-[#5e3a1d]" />
+      <div className="pointer-events-none absolute bottom-[13vh] left-1/2 h-20 w-[78vw] max-w-[940px] -translate-x-1/2 rounded-full bg-black/20 blur-3xl" />
 
       <div className="relative z-10 mx-auto flex h-full max-w-[1220px] flex-col overflow-hidden px-3 py-3 sm:px-5 sm:py-4">
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <div className="w-full max-w-[1080px] min-h-0 flex-1">
-            <div className="h-full rounded-[1.25rem] p-2.5 sm:p-3.5 md:p-4" style={FRAME_WOOD_OUTER_STYLE}>
-              <div className="h-full rounded-[0.95rem] p-2.5 sm:p-3.5 md:p-4" style={FRAME_WOOD_INNER_STYLE}>
+            <div className="wood-grain h-full rounded-[1.25rem] p-2.5 sm:p-3.5 md:p-4" style={FRAME_WOOD_OUTER_STYLE}>
+              <div className="wood-grain h-full rounded-[0.95rem] p-2.5 sm:p-3.5 md:p-4" style={FRAME_WOOD_INNER_STYLE}>
                 <div className="h-full rounded-[0.7rem] p-3 sm:p-4 md:p-5" style={FRAME_MAT_STYLE}>
                 {diary === null ? (
                   <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-3 sm:gap-4">
@@ -247,7 +242,7 @@ export default function SeniorView() {
                             <path d="m21 17-5-5-4 4-3-3-6 6" />
                           </svg>
                         </div>
-                        <h2 className="text-xl font-semibold tracking-tight text-stone-700 sm:text-2xl">
+                        <h2 className="senior-title text-2xl text-stone-700 sm:text-3xl">
                           等待小辈发来今日日记…
                         </h2>
                       </div>
@@ -271,11 +266,11 @@ export default function SeniorView() {
                   </div>
                 ) : (
                   <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto] gap-3 sm:gap-4">
-                    <header className="flex-none text-center">
-                      <div className="text-[11px] uppercase tracking-[0.28em] text-stone-500">
+                    <header className="flex-none px-2 text-center">
+                      <div className="senior-eyebrow text-[11px] uppercase text-stone-500">
                         {diary.date}
                       </div>
-                      <h1 className="mt-1.5 text-lg font-semibold tracking-tight text-stone-800 sm:text-xl md:text-[1.65rem]">
+                      <h1 className="senior-title mt-2 line-clamp-2 text-2xl [text-wrap:balance] sm:text-3xl md:text-[2rem]">
                         {diary.title}
                       </h1>
                     </header>
@@ -329,7 +324,7 @@ export default function SeniorView() {
                               ))}
                             </div>
 
-                            <div className="absolute right-3 top-3 rounded-full bg-black/35 px-2.5 py-0.5 text-xs text-white backdrop-blur">
+                            <div className="senior-tabular absolute right-3 top-3 rounded-full bg-[#2b1f15]/55 px-2.5 py-0.5 text-xs text-white backdrop-blur">
                               {safeIdx + 1} / {total}
                             </div>
                           </div>
@@ -337,7 +332,7 @@ export default function SeniorView() {
                     </main>
 
                     <div
-                      className="relative mx-auto flex w-full max-w-[780px] flex-col items-center justify-center rounded-[1.1rem] border border-stone-200/70 bg-white/85 px-4 py-4 text-center sm:px-5"
+                      className="relative mx-auto flex w-full max-w-[780px] flex-col items-center justify-center overflow-hidden rounded-[1.1rem] border border-stone-200/70 bg-white/85 px-4 py-4 text-center sm:px-5"
                       style={FRAME_CAPTION_STYLE}
                     >
                       {hasNarration &&
@@ -359,27 +354,27 @@ export default function SeniorView() {
                         )}
                       {showListeningSubtitle ? (
                         <>
-                          <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+                          <div className="pill-listening mb-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium">
                             <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#c2410c]/60 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#c2410c]" />
                             </span>
                             正在听，您说…
                           </div>
-                          <p className="my-1 min-h-[2rem] px-2 text-lg font-semibold leading-relaxed tracking-tight text-stone-900 sm:text-xl md:text-2xl">
+                          <p className="my-1 line-clamp-3 min-h-[2rem] px-2 text-xl font-semibold leading-relaxed tracking-tight text-stone-900 sm:text-2xl md:text-[1.75rem]">
                             {asrPreview || <span className="text-stone-400">（请讲）</span>}
                           </p>
                         </>
                       ) : showThinkingSubtitle ? (
                         <>
-                          <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                          <div className="pill-thinking mb-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
                               <path d="M21 12a9 9 0 1 1-6.2-8.55" />
                             </svg>
                             小明正在想怎么回答…
                           </div>
                           {asr.finalTranscript && (
-                            <p className="my-1 max-w-prose px-2 text-sm italic leading-relaxed text-stone-500">
+                            <p className="my-1 line-clamp-2 max-w-prose px-2 text-base italic leading-relaxed text-stone-500 sm:text-lg">
                               您问：{asr.finalTranscript}
                             </p>
                           )}
@@ -387,7 +382,7 @@ export default function SeniorView() {
                       ) : hasNarration ? (
                         ttsStatus === 'error' ? (
                           <div className="px-4">
-                            <p className="mb-2 text-sm font-medium text-red-600">TTS 出错了</p>
+                            <p className="mb-2 text-sm font-medium text-[#9a330a]">朗读出错了</p>
                             <p className="max-w-prose break-all text-xs leading-relaxed text-stone-500">
                               {tts.error ?? '未知错误'}
                             </p>
@@ -401,18 +396,18 @@ export default function SeniorView() {
                         ) : (
                           <>
                             {prevSentence && (
-                              <p className="truncate text-sm leading-tight text-stone-400">
+                              <p className="truncate text-base leading-tight text-stone-400">
                                 {prevSentence}
                               </p>
                             )}
                             <p
                               key={displayIdx}
-                              className="my-1 px-2 text-lg font-semibold leading-relaxed tracking-tight text-stone-900 sm:text-xl md:text-2xl"
+                              className="my-1.5 line-clamp-4 px-2 text-xl font-semibold leading-relaxed tracking-tight text-stone-900 [text-wrap:balance] sm:text-2xl md:text-[1.75rem]"
                             >
                               {curSentence}
                             </p>
                             {nextSentence && (
-                              <p className="truncate text-sm leading-tight text-stone-400">
+                              <p className="truncate text-base leading-tight text-stone-400">
                                 {nextSentence}
                               </p>
                             )}
@@ -447,14 +442,14 @@ export default function SeniorView() {
                     >
                       <div className="flex-1">
                         <div className="mb-1 flex items-baseline justify-between">
-                          <span className="text-xs font-medium text-stone-600">
+                          <span className="senior-tabular text-xs font-medium text-stone-600">
                             {paused ? '已暂停' : '正在轮播'} · 第 {safeIdx + 1} / {total} 条
                           </span>
                           <span className="text-[11px] text-stone-400">每 10 秒切换</span>
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-stone-200/90">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 transition-all"
+                            className="progress-fill h-full rounded-full transition-all"
                             style={{ width: `${((safeIdx + 0.5) / total) * 100}%` }}
                           />
                         </div>
@@ -484,8 +479,6 @@ export default function SeniorView() {
         </div>
         </div>
 
-        <div className="pointer-events-none mt-1 h-3 w-40 flex-none rounded-b-[999px] sm:h-4 sm:w-56" style={FRAME_STAND_STYLE} />
-
         {diary !== null && (
           <div className="mt-3 flex w-full max-w-[400px] flex-none items-center justify-center self-center">
             <button
@@ -494,12 +487,8 @@ export default function SeniorView() {
                 if (asr.status === 'listening') stopListening()
                 else if (canTalk) startListening()
               }}
-              className={`pulse-ring relative flex h-14 w-full select-none items-center justify-center gap-3 rounded-full text-white shadow-lg transition active:translate-y-px ${
-                !canTalk && asr.status !== 'listening'
-                  ? 'cursor-not-allowed bg-stone-400 shadow-stone-400/20'
-                  : asr.status === 'listening'
-                    ? 'scale-[1.02] bg-red-700 shadow-red-600/40'
-                    : 'bg-red-600 shadow-red-600/30 hover:bg-red-700'
+              className={`talk-button relative flex h-14 w-full select-none items-center justify-center gap-3 rounded-full transition active:translate-y-px ${
+                asr.status === 'listening' ? 'is-listening scale-[1.02]' : ''
               }`}
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">

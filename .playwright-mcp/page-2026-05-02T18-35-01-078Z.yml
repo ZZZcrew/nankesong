@@ -1,0 +1,35 @@
+- generic [ref=e3]:
+  - navigation [ref=e63]:
+    - generic [ref=e64]:
+      - button "返回首页" [ref=e65] [cursor=pointer]:
+        - img [ref=e66]
+      - button "1 清理素材 上滑删除不想给妈妈看的" [ref=e68] [cursor=pointer]:
+        - generic [ref=e69]: "1"
+        - generic [ref=e70]:
+          - generic [ref=e71]: 清理素材
+          - generic [ref=e72]: 上滑删除不想给妈妈看的
+      - button "2 预览发送 确认内容和 AI 配文" [disabled] [ref=e73]:
+        - generic [ref=e74]: "2"
+        - generic [ref=e75]:
+          - generic [ref=e76]: 预览发送
+          - generic [ref=e77]: 确认内容和 AI 配文
+  - main [ref=e4]:
+    - generic [ref=e78]:
+      - generic [ref=e79]:
+        - generic [ref=e80]: 已保留 6 / 6
+        - button "重置" [ref=e81] [cursor=pointer]
+      - generic [ref=e94]:
+        - heading "保留 6 条" [level=2] [ref=e95]
+        - generic [ref=e96]:
+          - img "raw_001" [ref=e97]
+          - generic [ref=e98]:
+            - generic [ref=e99]: 朋友圈
+            - generic [ref=e100]: 黑客松第二天，肝到凌晨两点把 demo 雏形写完了
+          - img "raw_003" [ref=e101]
+          - img "raw_004" [ref=e102]
+          - img "raw_006" [ref=e103]
+          - generic [ref=e104]:
+            - generic [ref=e105]: 朋友圈
+            - generic [ref=e106]: 晚饭随便扒了两口外卖就接着写，明天就要 final demo 了
+        - button "重新筛选" [ref=e107] [cursor=pointer]
+        - button "进入下一步：预览发送 →" [ref=e108] [cursor=pointer]

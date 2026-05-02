@@ -1,0 +1,37 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: 2026 年 5 月 3 日 · 星期日
+      - heading "给妈妈捎点今天的事" [level=1] [ref=e8]
+      - paragraph [ref=e9]: 从朋友圈和相册里挑几张，写成一封小信，让她在相框里读到。
+    - main [ref=e10]:
+      - button "今日 整理今天，发给妈妈 筛图 · 写成一段小作文 · 发到相框" [ref=e11] [cursor=pointer]:
+        - generic [ref=e13]:
+          - img [ref=e15]
+          - generic [ref=e18]:
+            - generic [ref=e19]: 今日
+            - generic [ref=e20]: 整理今天，发给妈妈
+            - generic [ref=e21]: 筛图 · 写成一段小作文 · 发到相框
+          - img [ref=e22]
+      - generic [ref=e24]:
+        - button "妈妈的留言 2 有 2 条新的 今天 20:14 \"小明啊，今天工作忙吗？饭都按时吃了吗？\"" [ref=e25] [cursor=pointer]:
+          - generic [ref=e26]:
+            - img [ref=e28]
+            - generic [ref=e30]:
+              - generic [ref=e31]:
+                - generic [ref=e32]: 妈妈的留言
+                - generic [ref=e33]: "2"
+              - generic [ref=e34]: 有 2 条新的
+            - img [ref=e35]
+          - generic [ref=e37]:
+            - generic [ref=e38]: 今天 20:14
+            - paragraph [ref=e39]: "\"小明啊，今天工作忙吗？饭都按时吃了吗？\""
+        - button "过去的信 翻一翻这几天都写了什么 +4" [ref=e40] [cursor=pointer]:
+          - generic [ref=e41]:
+            - img [ref=e43]
+            - generic [ref=e46]:
+              - generic [ref=e47]: 过去的信
+              - generic [ref=e48]: 翻一翻这几天都写了什么
+            - img [ref=e49]
+          - generic [ref=e55]: "+4"
+    - generic [ref=e56]: 南柯松 · 让妈妈离你近一点

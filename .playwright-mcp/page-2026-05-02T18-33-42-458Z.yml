@@ -1,0 +1,36 @@
+- generic [ref=e3]:
+  - navigation [ref=e63]:
+    - generic [ref=e64]:
+      - button "返回首页" [ref=e65] [cursor=pointer]:
+        - img [ref=e66]
+      - button "1 清理素材 上滑删除不想给妈妈看的" [ref=e68] [cursor=pointer]:
+        - generic [ref=e69]: "1"
+        - generic [ref=e70]:
+          - generic [ref=e71]: 清理素材
+          - generic [ref=e72]: 上滑删除不想给妈妈看的
+      - button "2 预览发送 确认内容和 AI 配文" [disabled] [ref=e73]:
+        - generic [ref=e74]: "2"
+        - generic [ref=e75]:
+          - generic [ref=e76]: 预览发送
+          - generic [ref=e77]: 确认内容和 AI 配文
+  - main [ref=e4]:
+    - generic [ref=e78]:
+      - generic [ref=e79]:
+        - generic [ref=e80]: 剩余 6 / 6
+        - button "重置" [ref=e81] [cursor=pointer]
+      - generic [ref=e82]:
+        - generic [ref=e83]:
+          - img "raw_001"
+          - generic: 保留
+          - generic: 删除
+        - generic [ref=e85]:
+          - generic [ref=e87]: 朋友圈
+          - generic [ref=e88]: 黑客松第二天，肝到凌晨两点把 demo 雏形写完了
+        - generic [ref=e89]:
+          - img "raw_003"
+      - generic [ref=e90]:
+        - text: 左右滑 = 保留并下一条 · 上滑 = 删除
+        - text: 混合来自相机的照片与朋友圈
+      - generic [ref=e91]:
+        - button "删除" [ref=e92] [cursor=pointer]: ✕
+        - button "保留" [ref=e93] [cursor=pointer]: ✓
