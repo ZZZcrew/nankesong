@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNarrationTTS } from '../tts/useNarrationTTS'
+import { useASR } from '../asr/useASR'
+import { askBackend } from '../api/ask'
 
 type ImageDiaryItem = {
   kind: 'image'
@@ -66,14 +68,22 @@ export default function SeniorView() {
   const [sceneIdx, setSceneIdx] = useState(0)
   const [paused, setPaused] = useState(false)
 
-  const tts = useNarrationTTS(diary?.narration ?? '')
+  // TTS 当前正在播报的文本:初始=小作文,提问后=后端回复
+  const [spokenText, setSpokenText] = useState<string>(diary?.narration ?? '')
+  const [thinking, setThinking] = useState(false)
+
+  const tts = useNarrationTTS(spokenText)
+  const asr = useASR('zh-CN')
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return
-      setDiary(loadDiary())
+      const next = loadDiary()
+      setDiary(next)
       setSceneIdx(0)
       setPaused(false)
+      setSpokenText(next?.narration ?? '')
+      setThinking(false)
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -103,8 +113,55 @@ export default function SeniorView() {
 
   const replay = () => {
     setPaused(false)
-    tts.play()
+    setSpokenText(diary?.narration ?? '')
+    // setState 相同值不会触发 useEffect,所以先 stop 再重播
+    tts.stop()
+    setTimeout(() => tts.play(), 0)
   }
+
+  // ASR 流程:按住开始,松开结束,拿到 transcript 调后端,回复丢给 TTS 播
+  const handleFinalTranscript = useCallback(
+    async (transcript: string) => {
+      setThinking(true)
+      try {
+        const { text } = await askBackend({ transcript })
+        setSpokenText(text)
+      } catch {
+        setSpokenText('妈妈，我这边好像出了点问题，您稍等一下再试试。')
+      } finally {
+        setThinking(false)
+      }
+    },
+    [],
+  )
+
+  const startListening = () => {
+    if (tts.status === 'playing' || tts.status === 'paused') tts.stop()
+    asr.start(handleFinalTranscript)
+  }
+
+  const stopListening = () => {
+    if (asr.status === 'listening') asr.stop()
+  }
+
+  // 「按住说话」可按条件:ASR 可用、不在 thinking、有日记。
+  // 如果日记有小作文,还需等 TTS 念完;没小作文就直接放行(比如接口挂了兜底为空)
+  const micUsable = asr.status !== 'unsupported' && asr.status !== 'denied'
+  const narrationReady = tts.sentences.length === 0 || tts.status === 'ended'
+  const canTalk = narrationReady && !thinking && micUsable && diary !== null
+
+  const micHint =
+    asr.status === 'unsupported'
+      ? '当前浏览器不支持语音识别'
+      : asr.status === 'denied'
+        ? '未授权麦克风权限'
+        : asr.status === 'error'
+          ? '语音识别失败,请再试一次'
+          : !canTalk && diary !== null && !narrationReady && !thinking
+            ? '先听完今天的故事,再按住说话'
+            : thinking
+              ? '小明正在想怎么回答…'
+              : '问问题 · 或留言给小明'
 
   const { sentences, activeIdx, status: ttsStatus } = tts
   const hasNarration = sentences.length > 0
@@ -112,6 +169,10 @@ export default function SeniorView() {
   const prevSentence = displayIdx > 0 ? sentences[displayIdx - 1] : ''
   const curSentence = sentences[displayIdx] ?? ''
   const nextSentence = displayIdx < sentences.length - 1 ? sentences[displayIdx + 1] : ''
+
+  const showListeningSubtitle = asr.status === 'listening'
+  const showThinkingSubtitle = thinking
+  const asrPreview = (asr.finalTranscript + asr.interim).trim()
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-stone-900 p-3 md:p-5">
@@ -210,10 +271,55 @@ export default function SeniorView() {
                     </div>
                   </div>
 
-                  {/* 字幕区:和 TTS 同步,和图片轮播解耦 */}
-                  {hasNarration && (
-                    <div className="relative mt-3 flex min-h-[6.5rem] w-full max-w-3xl flex-none flex-col items-center justify-center px-4 text-center">
-                      {ttsStatus === 'blocked' ? (
+                  {/* 字幕区:优先展示 ASR/thinking 状态,否则展示 TTS */}
+                  <div className="relative mt-3 flex min-h-[6.5rem] w-full max-w-3xl flex-none flex-col items-center justify-center px-4 text-center">
+                    {/* 跳过讲述:小作文没念完就始终可见,和当前渲染分支解耦 */}
+                    {hasNarration &&
+                      !showListeningSubtitle &&
+                      !showThinkingSubtitle &&
+                      ttsStatus !== 'ended' &&
+                      ttsStatus !== 'unsupported' && (
+                        <button
+                          onClick={() => tts.skip()}
+                          className="absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-medium text-stone-600 shadow-sm transition hover:bg-stone-50 hover:text-stone-900 active:translate-y-px"
+                          aria-label="跳过讲述"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polygon points="5 4 15 12 5 20 5 4" />
+                            <line x1="19" y1="5" x2="19" y2="19" />
+                          </svg>
+                          跳过讲述
+                        </button>
+                      )}
+                    {showListeningSubtitle ? (
+                      <>
+                        <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                          </span>
+                          正在听，您说…
+                        </div>
+                        <p className="my-1 min-h-[2rem] px-2 text-xl font-semibold leading-relaxed tracking-tight text-stone-900 md:text-2xl">
+                          {asrPreview || <span className="text-stone-400">（请讲）</span>}
+                        </p>
+                      </>
+                    ) : showThinkingSubtitle ? (
+                      <>
+                        <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="animate-spin">
+                            <path d="M21 12a9 9 0 1 1-6.2-8.55" />
+                          </svg>
+                          小明正在想怎么回答…
+                        </div>
+                        {asr.finalTranscript && (
+                          <p className="my-1 max-w-prose px-2 text-sm italic leading-relaxed text-stone-500">
+                            您问：{asr.finalTranscript}
+                          </p>
+                        )}
+                      </>
+                    ) : hasNarration ? (
+                      ttsStatus === 'blocked' ? (
                         <button
                           onClick={() => tts.play()}
                           className="rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-stone-800 active:translate-y-px"
@@ -252,14 +358,16 @@ export default function SeniorView() {
                             </button>
                           )}
                         </>
-                      )}
-                    </div>
-                  )}
-                  {!hasNarration && scene && scene.kind === 'social' && (
-                    <p className="mt-3 flex-none px-4 text-center text-lg leading-relaxed text-stone-800 md:text-xl">
-                      {scene.author}发在朋友圈里
-                    </p>
-                  )}
+                      )
+                    ) : (
+                      scene &&
+                      scene.kind === 'social' && (
+                        <p className="px-4 text-lg leading-relaxed text-stone-800 md:text-xl">
+                          {scene.author}发在朋友圈里
+                        </p>
+                      )
+                    )}
+                  </div>
                 </main>
 
                 <div className="flex-none border-t border-stone-200/70 px-6 py-3 sm:px-8">
@@ -297,7 +405,27 @@ export default function SeniorView() {
                   </div>
 
                   <div className="flex items-center justify-center">
-                    <button className="pulse-ring relative flex h-14 w-[min(380px,90%)] items-center justify-center gap-3 rounded-full bg-red-600 text-white shadow-lg shadow-red-600/30 transition active:scale-[0.98] active:bg-red-700">
+                    <button
+                      disabled={!canTalk}
+                      onPointerDown={(e) => {
+                        if (!canTalk) return
+                        e.currentTarget.setPointerCapture(e.pointerId)
+                        startListening()
+                      }}
+                      onPointerUp={stopListening}
+                      onPointerCancel={stopListening}
+                      onPointerLeave={() => {
+                        if (asr.status === 'listening') stopListening()
+                      }}
+                      onContextMenu={(e) => e.preventDefault()}
+                      className={`pulse-ring relative flex h-14 w-[min(380px,90%)] touch-none select-none items-center justify-center gap-3 rounded-full text-white shadow-lg transition active:translate-y-px ${
+                        !canTalk
+                          ? 'cursor-not-allowed bg-stone-400 shadow-stone-400/20'
+                          : asr.status === 'listening'
+                            ? 'scale-[1.02] bg-red-700 shadow-red-600/40'
+                            : 'bg-red-600 shadow-red-600/30 hover:bg-red-700'
+                      }`}
+                    >
                       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <rect x="9" y="3" width="6" height="12" rx="3" />
@@ -306,8 +434,10 @@ export default function SeniorView() {
                         </svg>
                       </span>
                       <div className="text-left leading-tight">
-                        <div className="text-base font-bold tracking-tight">按住说话</div>
-                        <div className="text-[11px] opacity-90">问问题 · 或留言给小明</div>
+                        <div className="text-base font-bold tracking-tight">
+                          {asr.status === 'listening' ? '松开发送' : '按住说话'}
+                        </div>
+                        <div className="text-[11px] opacity-90">{micHint}</div>
                       </div>
                     </button>
                   </div>

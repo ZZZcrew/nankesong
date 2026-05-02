@@ -16,6 +16,7 @@ export type UseNarrationTTS = {
   pause: () => void
   resume: () => void
   stop: () => void
+  skip: () => void
 }
 
 function splitSentences(text: string): string[] {
@@ -118,6 +119,13 @@ export function useNarrationTTS(text: string): UseNarrationTTS {
     setActiveIdx(-1)
   }, [supported])
 
+  const skip = useCallback(() => {
+    cancelledRef.current = true
+    if (supported) window.speechSynthesis.cancel()
+    setStatus('ended')
+    setActiveIdx(sentences.length > 0 ? sentences.length - 1 : -1)
+  }, [supported, sentences])
+
   useEffect(() => {
     if (!supported) {
       setStatus('unsupported')
@@ -146,5 +154,5 @@ export function useNarrationTTS(text: string): UseNarrationTTS {
     }
   }, [sentences, speakFrom, supported])
 
-  return { sentences, activeIdx, status, play, pause, resume, stop }
+  return { sentences, activeIdx, status, play, pause, resume, stop, skip }
 }
