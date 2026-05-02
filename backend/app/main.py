@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api import agent, data, messages
 from app.config import settings
@@ -26,6 +27,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=DATA_DIR), name="static")
 
 app.include_router(data.router, prefix="/api/v1/data", tags=["data"])
 app.include_router(agent.router, prefix="/api/v1/agent", tags=["agent"])
