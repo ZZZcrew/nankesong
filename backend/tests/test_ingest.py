@@ -105,3 +105,16 @@ def test_ingest_clip_vision_failure_stores_sentinel(client, demo_family, monkeyp
     r = client.post("/ingest/clip", json=payload)
     assert r.status_code == 201
     assert r.json()["auto_caption"] == "[未生成描述]"
+
+
+def test_ingest_social_creates_row(client, demo_family):
+    payload = {
+        "content": "今天在三里屯，好久没来了",
+        "captured_at": "2026-05-02T20:00:00",
+        "image_urls": ["http://example.com/1.jpg"],
+    }
+    r = client.post("/ingest/social", json=payload)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["source"] == "social"
+    assert "今天" in body["auto_caption"]

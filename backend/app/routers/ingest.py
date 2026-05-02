@@ -73,3 +73,24 @@ def ingest_clip(payload: IngestClipIn, request: Request):
             captured_at=clip.captured_at, auto_caption=clip.auto_caption,
             visibility=clip.visibility,
         )
+
+
+@router.post("/social", response_model=ClipOut, status_code=201)
+def ingest_social(payload: IngestSocialIn, request: Request):
+    engine = _engine_from_request(request)
+    with session_scope(engine) as s:
+        # Social posts 保存为 source='social'，file_path 存第一张图（或空），
+        # content 落到 auto_caption 方便后续 LLM 直接用。
+        clip = RawClip(
+            source="social",
+            file_path=payload.image_urls[0] if payload.image_urls else "",
+            captured_at=payload.captured_at,
+            auto_caption=payload.content,
+        )
+        s.add(clip)
+        s.flush()
+        return ClipOut(
+            id=clip.id, source=clip.source, file_path=clip.file_path,
+            captured_at=clip.captured_at, auto_caption=clip.auto_caption,
+            visibility=clip.visibility,
+        )
