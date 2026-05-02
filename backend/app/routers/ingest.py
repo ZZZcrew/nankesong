@@ -44,8 +44,11 @@ def _auto_caption_from_video(file_path: str) -> str:
             captions = [caption_image(f, client) for f in frames[:3]]
         return " ".join(c for c in captions if c).strip()
     except Exception as e:
-        # 24h demo 容错：vision 失败不阻塞入库，留给小辈手动补
-        return f"[视觉描述失败: {type(e).__name__}]"
+        # 24h demo 容错：vision 失败不阻塞入库。
+        # 返回中性 sentinel，避免把异常类名喂给下游 LLM 造成污染；
+        # 真实错误打到 stdout 供 ops 排查。
+        print(f"[vision error] {type(e).__name__}: {e}", flush=True)
+        return "[未生成描述]"
 
 
 @router.post("/clip", response_model=ClipOut, status_code=201)

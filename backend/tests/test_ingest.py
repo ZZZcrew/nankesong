@@ -86,3 +86,22 @@ def test_ingest_clip_with_caption_skips_vision(client, demo_family, monkeypatch)
     assert r.status_code == 201
     assert r.json()["auto_caption"] == "前端已经写好了"
     assert called["vision"] == 0
+
+
+def test_ingest_clip_vision_failure_stores_sentinel(client, demo_family, monkeypatch):
+    """If OpenCV or vision raises, auto_caption falls back to [未生成描述]."""
+    def boom_extract(*a, **k):
+        raise RuntimeError("camera glitched")
+
+    from app.routers import ingest as ingest_router
+    monkeypatch.setattr(ingest_router, "extract_keyframes", boom_extract)
+    monkeypatch.setattr(ingest_router, "get_vision_client", lambda: object())
+
+    payload = {
+        "source": "camera",
+        "file_path": "/tmp/clipX.mp4",
+        "captured_at": "2026-05-02T17:00:00",
+    }
+    r = client.post("/ingest/clip", json=payload)
+    assert r.status_code == 201
+    assert r.json()["auto_caption"] == "[未生成描述]"
