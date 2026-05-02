@@ -152,11 +152,11 @@ export default function SeniorView() {
 
   const micHint =
     asr.status === 'unsupported'
-      ? '当前浏览器不支持语音识别'
+      ? asr.error ?? '当前浏览器不支持语音识别'
       : asr.status === 'denied'
         ? '未授权麦克风权限'
         : asr.status === 'error'
-          ? '语音识别失败,请再试一次'
+          ? `语音识别失败: ${asr.error ?? '未知错误'}`
           : !canTalk && diary !== null && !narrationReady && !thinking
             ? '先听完今天的故事,再按住说话'
             : thinking
@@ -406,20 +406,13 @@ export default function SeniorView() {
 
                   <div className="flex items-center justify-center">
                     <button
-                      disabled={!canTalk}
-                      onPointerDown={(e) => {
-                        if (!canTalk) return
-                        e.currentTarget.setPointerCapture(e.pointerId)
-                        startListening()
-                      }}
-                      onPointerUp={stopListening}
-                      onPointerCancel={stopListening}
-                      onPointerLeave={() => {
+                      disabled={!canTalk && asr.status !== 'listening'}
+                      onClick={() => {
                         if (asr.status === 'listening') stopListening()
+                        else if (canTalk) startListening()
                       }}
-                      onContextMenu={(e) => e.preventDefault()}
-                      className={`pulse-ring relative flex h-14 w-[min(380px,90%)] touch-none select-none items-center justify-center gap-3 rounded-full text-white shadow-lg transition active:translate-y-px ${
-                        !canTalk
+                      className={`pulse-ring relative flex h-14 w-[min(380px,90%)] select-none items-center justify-center gap-3 rounded-full text-white shadow-lg transition active:translate-y-px ${
+                        !canTalk && asr.status !== 'listening'
                           ? 'cursor-not-allowed bg-stone-400 shadow-stone-400/20'
                           : asr.status === 'listening'
                             ? 'scale-[1.02] bg-red-700 shadow-red-600/40'
@@ -435,7 +428,7 @@ export default function SeniorView() {
                       </span>
                       <div className="text-left leading-tight">
                         <div className="text-base font-bold tracking-tight">
-                          {asr.status === 'listening' ? '松开发送' : '按住说话'}
+                          {asr.status === 'listening' ? '点一下结束' : '点一下说话'}
                         </div>
                         <div className="text-[11px] opacity-90">{micHint}</div>
                       </div>
