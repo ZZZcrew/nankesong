@@ -3,11 +3,12 @@ import Deck from '../filter/Deck'
 import Results from '../filter/Results'
 import type { FeedItem } from '../filter/images'
 import { fetchRawData, deleteRawItems, type RawItem } from '../api/data'
+import type { GenerateSummaryResult } from '../api/agent'
 
 type Phase = 'loading' | 'swiping' | 'done' | 'empty' | 'error'
 
 type Props = {
-  onProceed: (kept: FeedItem[]) => void
+  onProceed: (kept: FeedItem[], summary: GenerateSummaryResult) => void
 }
 
 // 把后端的 RawItem 适配成现有 UI 用的 FeedItem(image / social)

@@ -1,132 +1,112 @@
 import { useState } from 'react'
-import type { FeedItem } from '../filter/images'
-import { generateNarration } from '../api/narration'
+import type { GenerateSummaryResult } from '../api/agent'
 
 type Props = {
-  kept: FeedItem[]
+  summary: GenerateSummaryResult
   onBack: () => void
 }
 
-type SendStatus = 'idle' | 'generating' | 'sending' | 'sent'
+type SendStatus = 'idle' | 'sending' | 'sent'
 
-const DIARY_TITLE = '小明在南山散步的一天'
-const DIARY_DATE = '2026 年 5 月 2 日 · 星期六'
+const DIARY_DATE_LABEL = '2026 年 5 月 2 日 · 星期六'
 
-function fallbackNarration(items: FeedItem[]): string {
-  const socials = items.filter((it) => it.kind === 'social').map((it) => it.text)
-  if (socials.length > 0) return socials.join(' ')
-  return '今天小明过得挺好的，给妈妈分享了几张照片。'
-}
-
-export default function AuditPage({ kept, onBack }: Props) {
+export default function AuditPage({ summary, onBack }: Props) {
   const [status, setStatus] = useState<SendStatus>('idle')
+  const [coverIdx, setCoverIdx] = useState(0)
 
   const send = async () => {
-    setStatus('generating')
-    let narration = ''
-    try {
-      const res = await generateNarration({ date: DIARY_DATE, title: DIARY_TITLE, items: kept })
-      narration = res.text
-    } catch {
-      narration = fallbackNarration(kept)
-    }
-
     setStatus('sending')
+    // 这里写 localStorage 是 demo 的中转手段,后续接 §4 publish 接口后会替换
     const diary = {
-      date: DIARY_DATE,
-      title: DIARY_TITLE,
+      date: DIARY_DATE_LABEL,
+      title: summary.title,
       publishedAt: Date.now(),
-      narration,
-      items: kept.map((it) =>
-        it.kind === 'image'
-          ? { kind: 'image', id: it.id, url: it.url }
-          : { kind: 'social', id: it.id, author: it.author, time: it.time, text: it.text },
-      ),
+      narration: summary.content,
+      summary_id: summary.summary_id,
+      suggested_questions: summary.suggested_questions,
+      items: summary.cover_image.map((url, i) => ({
+        kind: 'image' as const,
+        id: `cover-${i}`,
+        url,
+      })),
     }
     try {
       localStorage.setItem('nks-diary', JSON.stringify(diary))
     } catch {
-      // 容错:localStorage 满/被禁;保持发送流程不中断,状态仍然走到 sent
+      // ignore
     }
     setTimeout(() => setStatus('sent'), 400)
   }
 
-  if (kept.length === 0) {
-    return (
-      <div className="mx-auto flex max-w-xl flex-1 flex-col items-center justify-center px-6 text-center">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 text-stone-400">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <circle cx="9" cy="11" r="2" />
-            <path d="m21 17-5-5-4 4-3-3-6 6" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-semibold tracking-tight text-stone-800">还没有选好内容</h2>
-        <p className="mt-1.5 max-w-[32ch] text-sm leading-relaxed text-stone-500">
-          请先回到第一步"清理素材"，筛选出要给妈妈看的照片或朋友圈。
-        </p>
-        <button
-          onClick={onBack}
-          className="mt-6 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 active:translate-y-px"
-        >
-          ← 去筛选
-        </button>
-      </div>
-    )
-  }
-
   const busy = status !== 'idle'
+  const covers = summary.cover_image
+  const safeIdx = covers.length > 0 ? Math.min(coverIdx, covers.length - 1) : 0
 
   return (
-    <div className="flex flex-1 flex-col pb-28">
+    <div className="flex flex-1 flex-col bg-[#fbf8f2] pb-28">
       <header className="mx-auto w-full max-w-2xl px-4 pb-3 pt-6 text-center">
-        <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE} · 即将发送</div>
-        <h1 className="mt-1 text-2xl font-semibold text-stone-900">{DIARY_TITLE}</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          共 {kept.length} 条内容 · 妈妈将在相框里看到下面的内容
-        </p>
+        <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE_LABEL} · 即将发送</div>
+        <h1 className="mt-1 font-serif text-2xl font-semibold leading-tight tracking-tight text-stone-900 md:text-[28px]">
+          {summary.title}
+        </h1>
+        <p className="mt-1 text-xs text-stone-500">妈妈在相框里会看到下面这封信</p>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4">
-        {kept.map((it, i) =>
-          it.kind === 'image' ? (
-            <article
-              key={it.id}
-              className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
-            >
-              <div className="relative aspect-[3/2] bg-stone-100">
+        {/* 封面图轮播 */}
+        {covers.length > 0 && (
+          <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+            <div className="relative aspect-[3/2] bg-[#f6f1e5]">
+              {covers.map((url, i) => (
                 <img
-                  src={it.url}
-                  alt={it.name}
-                  className="absolute inset-0 h-full w-full object-cover"
+                  key={i}
+                  src={url}
+                  alt=""
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+                    i === safeIdx ? 'opacity-100' : 'opacity-0'
+                  }`}
                 />
-                <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white backdrop-blur">
-                  {i + 1} / {kept.length}
-                </div>
-              </div>
-            </article>
-          ) : (
-            <article
-              key={it.id}
-              className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
-            >
-              <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-4 py-2.5">
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                  朋友圈
-                </span>
-                <span className="text-xs font-medium text-stone-700">{it.author}</span>
-                <span className="text-[11px] text-stone-400">· {it.time}</span>
-                <span className="ml-auto text-[11px] text-stone-400">
-                  {i + 1} / {kept.length}
-                </span>
-              </div>
-              <p className="px-4 py-4 text-base leading-relaxed text-stone-800">{it.text}</p>
-            </article>
-          ),
+              ))}
+              {covers.length > 1 && (
+                <>
+                  <div className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-0.5 text-xs text-white backdrop-blur">
+                    {safeIdx + 1} / {covers.length}
+                  </div>
+                  <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2">
+                    {covers.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCoverIdx(i)}
+                        aria-label={`第 ${i + 1} 张`}
+                        className={`h-2 rounded-full transition-all ${
+                          i === safeIdx ? 'w-8 bg-white' : 'w-2 bg-white/60'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
         )}
+
+        {/* 家书正文 */}
+        <section className="overflow-hidden rounded-2xl border border-amber-200/70 bg-white shadow-sm">
+          <div className="flex items-stretch">
+            <div className="w-1.5 flex-none bg-amber-600" aria-hidden="true" />
+            <div className="flex-1 px-5 py-5">
+              <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.15em] text-amber-700">
+                AI 替你写的小作文
+              </div>
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-stone-800">
+                {summary.content}
+              </p>
+            </div>
+          </div>
+        </section>
+
       </main>
 
-      {/* 底部固定发送按钮 */}
       <div className="fixed bottom-0 left-0 right-0 border-t border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <button
@@ -142,7 +122,7 @@ export default function AuditPage({ kept, onBack }: Props) {
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold tracking-tight text-white shadow-sm transition active:translate-y-px disabled:opacity-80 ${
               status === 'sent'
                 ? 'bg-emerald-500'
-                : 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700'
+                : 'bg-amber-600 shadow-amber-600/20 hover:bg-amber-700'
             }`}
           >
             {status === 'idle' && (
@@ -154,7 +134,6 @@ export default function AuditPage({ kept, onBack }: Props) {
                 发送给妈妈
               </>
             )}
-            {status === 'generating' && 'AI 正在写今天的小作文…'}
             {status === 'sending' && '发送中…'}
             {status === 'sent' && (
               <>
