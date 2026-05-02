@@ -159,19 +159,22 @@ Demo 时展示"事后删段"（视觉冲击强），口播补一句"更彻底的
 
 ## 8. 技术栈
 
+**架构形态：前后端分离**（前端独立 SPA，后端纯 API 服务，通过 HTTP/JSON 通信）
+
 | 模块 | 选型 | 备注 |
 |------|------|------|
-| 前端 | React + Vite + Tailwind | 两端共享组件 |
-| 后端 | Node.js + Express | 单进程 |
-| 数据库 | SQLite（本地文件） | 零部署 |
-| 视频抽帧 | FFmpeg | 命令行 |
-| 视觉理解 | Claude Sonnet 4.6 / GPT-4o | 多模态 |
+| 前端 | React + Vite + Tailwind | SPA，两端共享组件 |
+| 后端 | **Python + FastAPI** | 单进程，异步支持好，与 LLM/FFmpeg 生态契合 |
+| 数据库 | SQLite（本地文件） | 零部署；用 SQLAlchemy 或直连 |
+| 视频抽帧 | FFmpeg（subprocess 调用） | 命令行 |
+| 视觉理解 | Claude Sonnet 4.6 / GPT-4o | 多模态，用 anthropic 或 openai SDK |
 | 日记生成 | Claude Sonnet 4.6 | 中文叙事强；带 prompt caching |
-| ASR | 浏览器 `SpeechRecognition` API | Chrome 内置，免费 |
-| TTS | 火山引擎 或 讯飞 | 二选一，现场调 API |
-| 意图判定 | LLM 一行 prompt | 不做规则引擎 |
-| 相机接入 | Insta360 官方 SDK | 硬件队员负责 |
-| 部署 | 本地 + 内网 Demo | 不上云 |
+| ASR | 浏览器 `SpeechRecognition` API | Chrome 内置，免费，前端直调 |
+| TTS | 火山引擎 或 讯飞 | 前端获取鉴权 token 后直调；或后端代理 |
+| 意图判定 | LLM 一行 prompt | 后端 `/diary/:id/voice` 端点内完成 |
+| 相机接入 | Insta360 官方 SDK | 硬件队员负责，产物落本地后调 `POST /ingest/clip` |
+| 跨域 | FastAPI CORSMiddleware | 允许前端 dev server |
+| 部署 | 本地 + 内网 Demo | 前后端分别启动；演示机器装 Python 3.11+ 和 Node 20+ |
 
 ## 9. 24 小时时间线
 
