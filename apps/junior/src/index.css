@@ -10,6 +10,16 @@ html, body, #root {
   color: #1f1f1f;
 }
 
+/* SeniorView 的按住说话按钮脉冲动画 */
+@keyframes ringpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  50%      { box-shadow: 0 0 0 24px rgba(220, 38, 38, 0); }
+}
+
+.pulse-ring {
+  animation: ringpulse 1.8s ease-out infinite;
+}
+
 /* ===========================================================
    筛选页（filter）专属样式：从原 apps/filter 整体迁移而来
    全部 scoped 在 .filter-app 之下，避免和 Tailwind 工具类冲突
@@ -178,17 +188,45 @@ body.filter-active {
 
 .filter-app .results .submit {
   margin-top: auto;
-  background: #3b82f6;
   color: white;
   border: none;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 120ms ease, background 160ms ease, box-shadow 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filter-app .results .submit.primary {
+  background: #059669;
+  box-shadow: 0 6px 18px -6px rgba(5, 150, 105, 0.55);
+}
+.filter-app .results .submit.primary:hover:not(:disabled) {
+  background: #047857;
+}
+
+.filter-app .results .submit.secondary {
+  margin-top: auto;
+  background: #1f2937;
+  color: #e7e5e4;
+}
+.filter-app .results .submit.secondary:hover {
+  background: #111827;
+}
+
+.filter-app .results .submit + .submit {
+  margin-top: 10px;
+}
+
+.filter-app .results .submit:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .filter-app .results .submit:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .filter-app .empty {

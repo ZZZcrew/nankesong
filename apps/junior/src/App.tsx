@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import FilterPage from './pages/FilterPage'
 import AuditPage from './pages/AuditPage'
+import SeniorView from './pages/SeniorView'
 import type { ImageItem } from './filter/images'
 
 type Step = 'filter' | 'audit'
@@ -11,6 +12,13 @@ const STEPS: { key: Step; label: string; sub: string }[] = [
 ]
 
 export default function App() {
+  const role = new URLSearchParams(window.location.search).get('role')
+  if (role === 'senior') return <SeniorView />
+
+  return <JuniorApp />
+}
+
+function JuniorApp() {
   const [step, setStep] = useState<Step>('filter')
   const [kept, setKept] = useState<ImageItem[]>([])
 

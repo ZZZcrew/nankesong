@@ -8,36 +8,55 @@
 
 ```
 apps/
-├── filter/    滑动筛图页（clip-level 隐私控制，端口 5173）
-├── junior/    小辈端审核页（端口 5174）
-└── senior/    长辈端阅读页（端口 5175，Demo 命门）
+└── junior/    唯一的 Vite app
+    ├── /                 小辈端（筛图 + 预览发送），旧 apps/filter 已合并进此流程
+    └── /?role=senior     长辈端（相框阅读），旧 apps/senior 已合并成同项目内的 view
 ```
 
-每个 app 独立安装依赖、独立启动，互不干扰。
+两端合并为一个 Vite app 的目的，是让 junior 发送给 senior 的数据通过 **localStorage + storage 事件** 即时中转 —— 只有同 origin 才能跨 tab 共享数据。未来接真后端后可再拆分。
 
 ## 开发
 
-首次进某个 app：
-
 ```bash
-cd apps/junior    # 或 filter / senior
+cd apps/junior
 npm install
 npm run dev
 ```
 
-三个页面端口不冲突，需要的话可以同时开三个终端分别跑。
+开两个浏览器标签验证链路：
+- A（小辈）: `http://localhost:5174/`
+- B（长辈）: `http://localhost:5174/?role=senior`
+
+A 点"发送给妈妈" → B 通过 storage 事件自动刷新为 A 刚筛过的图片 + 对应配文。
 
 ## 技术栈
 
-- **filter**: React + Vite + TS + 纯 CSS + @use-gesture + react-spring
-- **junior / senior**: React + Vite + TS + Tailwind v3
+React 18 + Vite 5 + TypeScript + Tailwind v3。筛图交互用 `@use-gesture/react` + `@react-spring/web`。
 
-filter 用的纯 CSS，junior 和 senior 用 Tailwind（对齐 spec §8）。
+## 数据流
+
+```
+apps/junior/src/assets/images/*.jpg
+     │  import.meta.glob（Vite dev 或打包后的 URL）
+     ▼
+  FilterPage 上滑删 / 左右滑留 → kept[]
+     │  AuditPage.send()
+     ▼
+  localStorage['nks-diary'] = {
+    date, title, publishedAt,
+    items: [{ id, url, caption }, ...]   // caption 目前取自 AuditPage 里的 mock CAPTIONS
+  }
+     │  storage event
+     ▼
+  SeniorView 相框轮播
+```
+
+- 图片文件唯一来源是 `apps/junior/src/assets/images/`
+- 配文目前是 `AuditPage.tsx` 里 hardcoded 的 `CAPTIONS`，按 kept 数组顺序分配；后续可替换为 Claude 生成
+- 没有任何 picsum / 远程占位图
 
 ## 当前状态
 
-- filter：UI 完成，功能跑通，数据源是 `src/assets/images/`，提交走 `VITE_SUBMIT_URL`
-- junior：静态视觉稿，mock 数据，段落"删除/恢复"可点
-- senior：静态视觉稿，mock 数据，封面轮播可切换、朗读进度条、按住说话按钮（视觉）
-
-所有页面当前都不接真后端。后端就绪后按 spec §6 的 API 契约接入。
+- 筛图 / 预览 / 发送链路：打通
+- SeniorView：空态占位 + 接收到数据后轮播、进度条、暂停、按住说话按钮（视觉）
+- 不接后端。按 spec §6 的 API 契约接入时，把 `localStorage.setItem` 换成 `fetch('/api/diary/publish')`、`localStorage.getItem` 换成 `fetch('/api/diary/latest')` 即可，数据结构不变

@@ -9,7 +9,9 @@ type Props = {
 export default function Results({ kept, onReset, onProceed }: Props) {
   return (
     <div className="results">
-      <h2>保留 {kept.length} 张</h2>
+      <h2>
+        保留 <span className="tabular-nums">{kept.length}</span> 张
+      </h2>
 
       {kept.length === 0 ? (
         <div className="empty">没有保留任何照片</div>
@@ -21,15 +23,11 @@ export default function Results({ kept, onReset, onProceed }: Props) {
         </div>
       )}
 
-      <button
-        className="submit"
-        onClick={onReset}
-        style={{ background: '#374151' }}
-      >
+      <button className="submit secondary" onClick={onReset}>
         重新筛选
       </button>
       <button
-        className="submit"
+        className="submit primary"
         onClick={() => onProceed(kept)}
         disabled={kept.length === 0}
       >

@@ -28,21 +28,41 @@ export default function AuditPage({ kept, onBack }: Props) {
 
   const send = () => {
     setStatus('sending')
-    // mock：1.5 秒后变成已送达
-    setTimeout(() => setStatus('sent'), 1500)
+    const diary = {
+      date: DIARY_DATE,
+      title: DIARY_TITLE,
+      publishedAt: Date.now(),
+      items: kept.map((img, i) => ({
+        id: img.id,
+        url: img.url,
+        caption: CAPTIONS[i % CAPTIONS.length],
+      })),
+    }
+    try {
+      localStorage.setItem('nks-diary', JSON.stringify(diary))
+    } catch {
+      // 容错:localStorage 满/被禁;保持发送流程不中断,状态仍然走到 sent
+    }
+    setTimeout(() => setStatus('sent'), 600)
   }
 
   if (kept.length === 0) {
     return (
       <div className="mx-auto flex max-w-xl flex-1 flex-col items-center justify-center px-6 text-center">
-        <div className="mb-3 text-4xl">📭</div>
-        <h2 className="text-lg font-semibold text-stone-800">还没有选好照片</h2>
-        <p className="mt-1 text-sm text-stone-500">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100 text-stone-400">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <circle cx="9" cy="11" r="2" />
+            <path d="m21 17-5-5-4 4-3-3-6 6" />
+          </svg>
+        </div>
+        <h2 className="text-lg font-semibold tracking-tight text-stone-800">还没有选好照片</h2>
+        <p className="mt-1.5 max-w-[32ch] text-sm leading-relaxed text-stone-500">
           请先回到第一步"清理素材"，筛选出要给妈妈看的照片。
         </p>
         <button
           onClick={onBack}
-          className="mt-6 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-800"
+          className="mt-6 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 active:translate-y-px"
         >
           ← 去筛选
         </button>
@@ -94,22 +114,37 @@ export default function AuditPage({ kept, onBack }: Props) {
           <button
             onClick={onBack}
             disabled={status !== 'idle'}
-            className="rounded-xl border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40"
+            className="rounded-xl border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 active:translate-y-px disabled:opacity-40"
           >
             ← 返回
           </button>
           <button
             onClick={send}
             disabled={status !== 'idle'}
-            className={`flex-1 rounded-xl py-3 text-sm font-semibold text-white shadow-sm transition disabled:opacity-80 ${
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold tracking-tight text-white shadow-sm transition active:translate-y-px disabled:opacity-80 ${
               status === 'sent'
                 ? 'bg-emerald-500'
                 : 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700'
             }`}
           >
-            {status === 'idle' && '✅ 发送给妈妈'}
+            {status === 'idle' && (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M22 2 11 13" />
+                  <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+                </svg>
+                发送给妈妈
+              </>
+            )}
             {status === 'sending' && '发送中…'}
-            {status === 'sent' && '已送达妈妈的相框 ✓'}
+            {status === 'sent' && (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                已送达妈妈的相框
+              </>
+            )}
           </button>
         </div>
       </div>
