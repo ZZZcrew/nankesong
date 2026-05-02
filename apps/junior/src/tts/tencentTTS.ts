@@ -1,12 +1,30 @@
-import CryptoJS from 'crypto-js'
+// 注：文件名沿用 tencentTTS.ts 以避免动上层组件，实际已切换为阶跃 (Stepfun) TTS。
+// curl 等价：
+//   POST https://api.stepfun.com/v1/audio/speech
+//   Authorization: Bearer $STEP_API_KEY
+//   body: { model, voice, input, instruction? }
+//   响应体直接为音频二进制 (默认 mp3)。
 
-const APPID = import.meta.env.VITE_TENCENT_ASR_APPID
-const SECRETID = import.meta.env.VITE_TENCENT_ASR_SECRETID
-const SECRETKEY = import.meta.env.VITE_TENCENT_ASR_SECRETKEY
-export const HAS_TTS_CREDENTIALS = Boolean(APPID && SECRETID && SECRETKEY)
+const API_KEY = import.meta.env.VITE_STEP_API_KEY as string | undefined
+const ENDPOINT = 'https://api.stepfun.com/v1/audio/speech'
+const DEFAULT_MODEL = 'stepaudio-2.5-tts'
+const DEFAULT_VOICE = 'cixingnansheng'
 
-const HOST = 'tts.cloud.tencent.com'
-const PATH = '/stream_ws'
+export const HAS_TTS_CREDENTIALS = Boolean(API_KEY)
+
+export type SynthesizeResult = {
+  audio: ArrayBuffer
+  sessionId: string
+}
+
+export type SynthesizeOptions = {
+  /** 兼容旧签名,已弃用:阶跃 API 不使用数字 voiceType */
+  voiceType?: number
+  voice?: string
+  model?: string
+  instruction?: string
+  signal?: AbortSignal
+}
 
 function uuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -16,112 +34,41 @@ function uuid(): string {
   })
 }
 
-function buildSignedUrl(text: string, voiceType: number): string {
-  const now = Math.floor(Date.now() / 1000)
-  const params: Record<string, string | number> = {
-    Action: 'TextToStreamAudioWS',
-    AppId: APPID!,
-    Codec: 'mp3', // mp3 可直接丢给 <audio> 播放,pcm 需自己 decode
-    EnableSubtitle: 0,
-    Expired: now + 24 * 60 * 60,
-    ModelType: 1,
-    SampleRate: 16000,
-    SecretId: SECRETID!,
-    SessionId: uuid(),
-    Speed: 0, // 语速,[-2, 2]
-    Text: text,
-    Timestamp: now,
-    VoiceType: voiceType,
-    Volume: 0, // 音量,[-10, 10]
-  }
-  // 字典序排序后拼接
-  const keys = Object.keys(params).sort()
-  const queryStr = keys.map((k) => `${k}=${params[k]}`).join('&')
-  const signStr = `GET${HOST}${PATH}?${queryStr}`
-  const sig = CryptoJS.HmacSHA1(signStr, SECRETKEY!)
-  const base64Sig = CryptoJS.enc.Base64.stringify(sig)
-  // Text 要 urlencode,其他不用(按文档描述);Signature 要 urlencode
-  const encodedQuery = keys
-    .map((k) => `${k}=${k === 'Text' ? encodeURIComponent(String(params[k])) : params[k]}`)
-    .join('&')
-  return `wss://${HOST}${PATH}?${encodedQuery}&Signature=${encodeURIComponent(base64Sig)}`
-}
-
-export type SynthesizeResult = {
-  audio: ArrayBuffer // 完整 MP3 数据
-  sessionId: string
-}
-
-export function synthesizeSentence(
+export async function synthesizeSentence(
   text: string,
-  options: { voiceType?: number; signal?: AbortSignal } = {},
+  options: SynthesizeOptions = {},
 ): Promise<SynthesizeResult> {
   if (!HAS_TTS_CREDENTIALS) {
-    return Promise.reject(new Error('未配置腾讯云 TTS 凭证'))
+    throw new Error('未配置阶跃 TTS 凭证 (VITE_STEP_API_KEY)')
   }
-  const voiceType = options.voiceType ?? 101001 // 智瑜 情感女声
 
-  return new Promise((resolve, reject) => {
-    const url = buildSignedUrl(text, voiceType)
-    const ws = new WebSocket(url)
-    ws.binaryType = 'arraybuffer'
-    const chunks: ArrayBuffer[] = []
-    let sessionId = ''
-    let settled = false
+  const body: Record<string, string> = {
+    model: options.model ?? DEFAULT_MODEL,
+    voice: options.voice ?? DEFAULT_VOICE,
+    input: text,
+  }
+  if (options.instruction) body.instruction = options.instruction
 
-    const settle = (fn: () => void) => {
-      if (settled) return
-      settled = true
-      fn()
-      try {
-        ws.close()
-      } catch {
-        // ignore
-      }
-    }
-
-    options.signal?.addEventListener('abort', () => {
-      settle(() => reject(new DOMException('aborted', 'AbortError')))
-    })
-
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === 'string') {
-        try {
-          const msg = JSON.parse(ev.data) as {
-            code?: number
-            message?: string
-            final?: number
-            session_id?: string
-          }
-          if (msg.code && msg.code !== 0) {
-            settle(() => reject(new Error(`TTS ${msg.code}: ${msg.message}`)))
-            return
-          }
-          if (msg.session_id) sessionId = msg.session_id
-          if (msg.final === 1) {
-            const total = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0))
-            let offset = 0
-            for (const c of chunks) {
-              total.set(new Uint8Array(c), offset)
-              offset += c.byteLength
-            }
-            settle(() => resolve({ audio: total.buffer, sessionId }))
-          }
-        } catch (err) {
-          settle(() => reject(err instanceof Error ? err : new Error(String(err))))
-        }
-      } else if (ev.data instanceof ArrayBuffer) {
-        chunks.push(ev.data)
-      }
-    }
-
-    ws.onerror = () => {
-      settle(() => reject(new Error('TTS WebSocket 错误')))
-    }
-    ws.onclose = (ev) => {
-      if (!settled) {
-        settle(() => reject(new Error(`TTS 连接关闭: code=${ev.code} reason=${ev.reason}`)))
-      }
-    }
+  const resp = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: options.signal,
   })
+
+  if (!resp.ok) {
+    let detail = ''
+    try {
+      detail = await resp.text()
+    } catch {
+      // ignore
+    }
+    throw new Error(`Stepfun TTS ${resp.status}: ${detail || resp.statusText}`)
+  }
+
+  const audio = await resp.arrayBuffer()
+  return { audio, sessionId: uuid() }
 }
