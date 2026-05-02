@@ -1,9 +1,10 @@
 from datetime import date as date_cls, datetime, timedelta
 from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
 from app.db import session_scope
+from app.deps import engine_from_request
 from app.models import Diary, Family, RawClip
 from app.schemas import DiaryOut, DiaryParagraph
 from app.services.diary_generator import generate_diary, AnthropicDiaryClient
@@ -16,8 +17,16 @@ def get_diary_client():
     return AnthropicDiaryClient(api_key=get_settings().anthropic_api_key)
 
 
-def _engine_from_request(request):
-    return request.app.state.test_engine if hasattr(request.app.state, "test_engine") else request.app.state.engine
+class _GeneratedParagraph(BaseModel):
+    id: str
+    text: str
+    source_clip_ids: list[int] = []
+
+
+class _GeneratedDiary(BaseModel):
+    title: str = "今日日记"
+    paragraphs: list[_GeneratedParagraph] = []
+    cover_clip_ids: list[int] = []
 
 
 class GenerateIn(BaseModel):
@@ -35,7 +44,7 @@ def _to_out(d: Diary) -> DiaryOut:
 
 @router.post("/generate", response_model=DiaryOut, status_code=201)
 def generate(payload: GenerateIn, request: Request):
-    engine = _engine_from_request(request)
+    engine = engine_from_request(request)
     start = datetime.combine(payload.date, datetime.min.time())
     end = start + timedelta(days=1)
 
@@ -61,22 +70,26 @@ def generate(payload: GenerateIn, request: Request):
         llm = get_diary_client()
         generated = generate_diary(clip_dicts, llm)
 
+        try:
+            validated = _GeneratedDiary.model_validate(generated)
+        except ValidationError as e:
+            raise HTTPException(502, f"malformed LLM diary: {e.errors()[:3]}")
+
         # Resolve cover_clip_ids → file_path
-        cover_ids = generated.get("cover_clip_ids", [])
         id_to_path = {c.id: c.file_path for c in clips}
-        covers = [id_to_path[i] for i in cover_ids if i in id_to_path]
+        covers = [id_to_path[i] for i in validated.cover_clip_ids if i in id_to_path]
 
         paragraphs = [
-            {"id": p["id"], "text": p["text"],
-             "source_clip_ids": p.get("source_clip_ids", []), "hidden": False}
-            for p in generated.get("paragraphs", [])
+            {"id": p.id, "text": p.text,
+             "source_clip_ids": p.source_clip_ids, "hidden": False}
+            for p in validated.paragraphs
         ]
 
         d = Diary(
             family_id=fam.id,
             date=payload.date,
             status="draft",
-            title=generated.get("title", "今日日记"),
+            title=validated.title,
             body_json=paragraphs,
             cover_images_json=covers,
         )

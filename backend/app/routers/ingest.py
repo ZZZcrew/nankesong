@@ -5,16 +5,13 @@ from fastapi import APIRouter, Request
 
 from app.config import get_settings
 from app.db import session_scope
+from app.deps import engine_from_request
 from app.models import RawClip
 from app.schemas import IngestClipIn, ClipOut, IngestSocialIn
 from app.services.frame_extractor import extract_keyframes
 from app.services.vision import caption_image, AnthropicVisionClient
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
-
-
-def _engine_from_request(request: Request):
-    return request.app.state.test_engine if hasattr(request.app.state, "test_engine") else request.app.state.engine
 
 
 def get_vision_client():
@@ -53,7 +50,7 @@ def _auto_caption_from_video(file_path: str) -> str:
 
 @router.post("/clip", response_model=ClipOut, status_code=201)
 def ingest_clip(payload: IngestClipIn, request: Request):
-    engine = _engine_from_request(request)
+    engine = engine_from_request(request)
 
     auto_caption = payload.auto_caption
     if not auto_caption and payload.source == "camera":
@@ -77,7 +74,7 @@ def ingest_clip(payload: IngestClipIn, request: Request):
 
 @router.post("/social", response_model=ClipOut, status_code=201)
 def ingest_social(payload: IngestSocialIn, request: Request):
-    engine = _engine_from_request(request)
+    engine = engine_from_request(request)
     with session_scope(engine) as s:
         # Social posts 保存为 source='social'，file_path 存第一张图（或空），
         # content 落到 auto_caption 方便后续 LLM 直接用。

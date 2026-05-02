@@ -57,3 +57,18 @@ def test_generate_diary_skips_hidden_clips(client, demo_family, engine, monkeypa
     client.post("/diary/generate", json={"date": "2026-05-02"})
     assert "酒吧的素材" not in captured_prompts[0]
     assert "吃饭的素材" in captured_prompts[0]
+
+
+def test_generate_diary_returns_502_on_malformed_llm(client, demo_family, engine, monkeypatch):
+    _seed_clips(engine)
+
+    class BrokenClient:
+        def generate(self, prompt):
+            # Missing required 'text' field in paragraph
+            return '{"title":"x","paragraphs":[{"id":"p1"}],"cover_clip_ids":[]}'
+
+    from app.routers import diary as diary_router
+    monkeypatch.setattr(diary_router, "get_diary_client", lambda: BrokenClient())
+
+    r = client.post("/diary/generate", json={"date": "2026-05-02"})
+    assert r.status_code == 502
