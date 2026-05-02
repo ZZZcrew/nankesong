@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCloudTTS } from '../tts/useCloudTTS'
 import { useASR } from '../asr/useASR'
-import { askBackend } from '../api/ask'
+import { chatWithAgent } from '../api/agent'
 import { loadMockDiary } from '../api/mockDiary'
 
 type ImageDiaryItem = {
@@ -25,6 +25,7 @@ type Diary = {
   title: string
   publishedAt: number
   narration: string
+  summary_id?: string
   items: DiaryItem[]
 }
 
@@ -57,6 +58,7 @@ function loadDiary(): Diary | null {
       title: parsed.title ?? '',
       publishedAt: parsed.publishedAt ?? 0,
       narration: parsed.narration ?? '',
+      summary_id: typeof parsed.summary_id === 'string' ? parsed.summary_id : undefined,
       items,
     }
   } catch {
@@ -120,25 +122,28 @@ export default function SeniorView() {
     setTimeout(() => tts.play(), 0)
   }
 
-  // ASR 流程:按住开始,松开结束,拿到 transcript 调后端,回复丢给 TTS 播
+  // ASR 流程:点击开始,再点结束,拿到 transcript 调 /agent/chat,回复丢给 TTS 播
   const handleFinalTranscript = useCallback(
     async (transcript: string) => {
       console.log('[链路] ASR 完整识别:', transcript)
       setThinking(true)
       try {
-        console.log('[链路] 调用 askBackend...')
-        const { text } = await askBackend({ transcript })
-        console.log('[链路] 后端回复:', text)
-        console.log('[链路] 交给 TTS 播报')
-        setSpokenText(text)
+        const summary_id = diary?.summary_id ?? ''
+        console.log('[链路] 调用 chatWithAgent... summary_id=', summary_id)
+        const { reply_text, action } = await chatWithAgent({
+          query: transcript,
+          summary_id,
+        })
+        console.log('[链路] 后端回复 action=%s:', action, reply_text)
+        setSpokenText(reply_text)
       } catch (err) {
-        console.error('[链路] askBackend 失败:', err)
+        console.error('[链路] chatWithAgent 失败:', err)
         setSpokenText('妈妈，我这边好像出了点问题，您稍等一下再试试。')
       } finally {
         setThinking(false)
       }
     },
-    [],
+    [diary?.summary_id],
   )
 
   const startListening = () => {

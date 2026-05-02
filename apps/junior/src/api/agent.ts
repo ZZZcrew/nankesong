@@ -1,12 +1,10 @@
-// 接口文档 §3:Agent 摘要生成
+// 接口文档 §3 §4:Agent 摘要生成 + 长辈对话
 // POST http://192.168.188.244:8000/api/v1/agent/generate-summary
-// Body: { date, user_id }
-// Returns: { summary_id, title, content, cover_image[], suggested_questions[] }
-//
-// 触发时机:小辈在筛选页点"进入下一步"按钮时,把后端剩余的(visibility=visible)素材
-// 喂给 LLM 生成今日家书,前端拿到结果后渲染到预览发送页
+// POST http://192.168.188.244:8000/api/v1/agent/chat
 
 const BASE_URL = 'http://192.168.188.244:8000/api/v1'
+
+// ============== §3 generate-summary ==============
 
 export type GenerateSummaryInput = {
   date: string // YYYY-MM-DD
@@ -40,3 +38,28 @@ export async function generateSummary(
   if (json.code !== 200) throw new Error(json.message || 'unknown error')
   return json.data
 }
+
+// ============== §4 chat ==============
+
+export type ChatInput = {
+  query: string // 长辈说的话(ASR 结果)
+  summary_id: string // 当前展示的家书 ID,让 Agent 知道上下文
+}
+
+export type ChatResult = {
+  reply_text: string // 给 TTS 播报 + 字幕用
+  action: 'reply' | 'notify_younger' // notify_younger=后端已生成给小辈的关怀通知
+}
+
+export async function chatWithAgent(input: ChatInput): Promise<ChatResult> {
+  const res = await fetch(`${BASE_URL}/agent/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = (await res.json()) as ApiResponse<ChatResult>
+  if (json.code !== 200) throw new Error(json.message || 'unknown error')
+  return json.data
+}
+
