@@ -1,57 +1,45 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { FeedItem } from '../filter/images'
+import { generateNarration } from '../api/narration'
 
 type Props = {
   kept: FeedItem[]
   onBack: () => void
 }
 
-type SendStatus = 'idle' | 'sending' | 'sent'
+type SendStatus = 'idle' | 'generating' | 'sending' | 'sent'
 
 const DIARY_TITLE = '小明在南山散步的一天'
 const DIARY_DATE = '2026 年 5 月 2 日 · 星期六'
 
-// AI 生成的每张图文字说明（mock）。图片数量超出时循环使用。
-const CAPTIONS = [
-  '下午五点多，小明和同事走到南山脚下散步。',
-  '在观景台看着城里的灯一盏一盏亮起来。',
-  '晚上在山下的老店和朋友吃了一顿火锅。',
-  '回家路上买了一袋橘子，明天带去办公室。',
-  '地铁上靠窗坐着，车窗外能看到江面。',
-  '今天出门前在咖啡馆写完了一封信。',
-  '午后走到公园看到有人放风筝。',
-  '晚上拐进一家小店吃了碗面，汤头不错。',
-]
-
-type AnnotatedImage = { kind: 'image'; id: string; url: string; name: string; caption: string }
-type AnnotatedSocial = { kind: 'social'; id: string; author: string; time: string; text: string }
-type AnnotatedItem = AnnotatedImage | AnnotatedSocial
-
-function annotate(kept: FeedItem[]): AnnotatedItem[] {
-  let imgIdx = 0
-  return kept.map((it) => {
-    if (it.kind === 'image') {
-      const caption = CAPTIONS[imgIdx % CAPTIONS.length]
-      imgIdx++
-      return { ...it, caption }
-    }
-    return it
-  })
+function fallbackNarration(items: FeedItem[]): string {
+  const socials = items.filter((it) => it.kind === 'social').map((it) => it.text)
+  if (socials.length > 0) return socials.join(' ')
+  return '今天小明过得挺好的，给妈妈分享了几张照片。'
 }
 
 export default function AuditPage({ kept, onBack }: Props) {
   const [status, setStatus] = useState<SendStatus>('idle')
-  const items = useMemo(() => annotate(kept), [kept])
 
-  const send = () => {
+  const send = async () => {
+    setStatus('generating')
+    let narration = ''
+    try {
+      const res = await generateNarration({ date: DIARY_DATE, title: DIARY_TITLE, items: kept })
+      narration = res.text
+    } catch {
+      narration = fallbackNarration(kept)
+    }
+
     setStatus('sending')
     const diary = {
       date: DIARY_DATE,
       title: DIARY_TITLE,
       publishedAt: Date.now(),
-      items: items.map((it) =>
+      narration,
+      items: kept.map((it) =>
         it.kind === 'image'
-          ? { kind: 'image', id: it.id, url: it.url, caption: it.caption }
+          ? { kind: 'image', id: it.id, url: it.url }
           : { kind: 'social', id: it.id, author: it.author, time: it.time, text: it.text },
       ),
     }
@@ -60,7 +48,7 @@ export default function AuditPage({ kept, onBack }: Props) {
     } catch {
       // 容错:localStorage 满/被禁;保持发送流程不中断,状态仍然走到 sent
     }
-    setTimeout(() => setStatus('sent'), 600)
+    setTimeout(() => setStatus('sent'), 400)
   }
 
   if (kept.length === 0) {
@@ -87,18 +75,20 @@ export default function AuditPage({ kept, onBack }: Props) {
     )
   }
 
+  const busy = status !== 'idle'
+
   return (
     <div className="flex flex-1 flex-col pb-28">
       <header className="mx-auto w-full max-w-2xl px-4 pb-3 pt-6 text-center">
         <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE} · 即将发送</div>
         <h1 className="mt-1 text-2xl font-semibold text-stone-900">{DIARY_TITLE}</h1>
         <p className="mt-1 text-sm text-stone-500">
-          共 {items.length} 条内容 · 妈妈将在相框里看到下面的内容
+          共 {kept.length} 条内容 · 妈妈将在相框里看到下面的内容
         </p>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4">
-        {items.map((it, i) =>
+        {kept.map((it, i) =>
           it.kind === 'image' ? (
             <article
               key={it.id}
@@ -111,14 +101,8 @@ export default function AuditPage({ kept, onBack }: Props) {
                   className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white backdrop-blur">
-                  {i + 1} / {items.length}
+                  {i + 1} / {kept.length}
                 </div>
-              </div>
-              <div className="px-4 py-3">
-                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-stone-400">
-                  AI 配文
-                </div>
-                <p className="text-base leading-relaxed text-stone-800">{it.caption}</p>
               </div>
             </article>
           ) : (
@@ -133,7 +117,7 @@ export default function AuditPage({ kept, onBack }: Props) {
                 <span className="text-xs font-medium text-stone-700">{it.author}</span>
                 <span className="text-[11px] text-stone-400">· {it.time}</span>
                 <span className="ml-auto text-[11px] text-stone-400">
-                  {i + 1} / {items.length}
+                  {i + 1} / {kept.length}
                 </span>
               </div>
               <p className="px-4 py-4 text-base leading-relaxed text-stone-800">{it.text}</p>
@@ -147,14 +131,14 @@ export default function AuditPage({ kept, onBack }: Props) {
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <button
             onClick={onBack}
-            disabled={status !== 'idle'}
+            disabled={busy}
             className="rounded-xl border border-stone-300 px-4 py-3 text-sm font-medium text-stone-700 transition hover:bg-stone-50 active:translate-y-px disabled:opacity-40"
           >
             ← 返回
           </button>
           <button
             onClick={send}
-            disabled={status !== 'idle'}
+            disabled={busy}
             className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold tracking-tight text-white shadow-sm transition active:translate-y-px disabled:opacity-80 ${
               status === 'sent'
                 ? 'bg-emerald-500'
@@ -170,6 +154,7 @@ export default function AuditPage({ kept, onBack }: Props) {
                 发送给妈妈
               </>
             )}
+            {status === 'generating' && 'AI 正在写今天的小作文…'}
             {status === 'sending' && '发送中…'}
             {status === 'sent' && (
               <>
