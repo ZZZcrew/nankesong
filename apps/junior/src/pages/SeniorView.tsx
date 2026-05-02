@@ -1,49 +1,93 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCloudTTS } from '../tts/useCloudTTS'
 import { useASR } from '../asr/useASR'
-import { chatWithAgent } from '../api/agent'
-import { fetchTodayDiary, type Diary } from '../api/diary'
-import { SENIOR_USER_ID } from '../api/client'
+import { askBackend } from '../api/ask'
 import { loadMockDiary } from '../api/mockDiary'
+
+type ImageDiaryItem = {
+  kind: 'image'
+  id: string
+  url: string
+}
+
+type SocialDiaryItem = {
+  kind: 'social'
+  id: string
+  author: string
+  time: string
+  text: string
+}
+
+type DiaryItem = ImageDiaryItem | SocialDiaryItem
+
+type Diary = {
+  date: string
+  title: string
+  publishedAt: number
+  narration: string
+  items: DiaryItem[]
+}
 
 const STORAGE_KEY = 'nks-diary'
 const AUTO_INTERVAL_MS = 5000
 
+function loadDiary(): Diary | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Omit<Partial<Diary>, 'items'> & {
+      items?: Array<Record<string, unknown>>
+    }
+    if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) return null
+    const items: DiaryItem[] = parsed.items.map((it) => {
+      const kind = (it.kind as string | undefined) ?? 'image'
+      if (kind === 'social') {
+        return {
+          kind: 'social',
+          id: String(it.id ?? ''),
+          author: String(it.author ?? ''),
+          time: String(it.time ?? ''),
+          text: String(it.text ?? ''),
+        }
+      }
+      return { kind: 'image', id: String(it.id ?? ''), url: String(it.url ?? '') }
+    })
+    return {
+      date: parsed.date ?? '',
+      title: parsed.title ?? '',
+      publishedAt: parsed.publishedAt ?? 0,
+      narration: parsed.narration ?? '',
+      items,
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function SeniorView() {
-  const [diary, setDiary] = useState<Diary | null>(null)
+  const [diary, setDiary] = useState<Diary | null>(() => loadDiary())
   const [sceneIdx, setSceneIdx] = useState(0)
   const [paused, setPaused] = useState(false)
 
-  const [spokenText, setSpokenText] = useState<string>('')
+  // TTS 当前正在播报的文本:初始=小作文,提问后=后端回复
+  const [spokenText, setSpokenText] = useState<string>(diary?.narration ?? '')
   const [thinking, setThinking] = useState(false)
 
   const tts = useCloudTTS(spokenText)
   const asr = useASR('zh-CN')
 
-  // 拉取今日日记:mount 时拉一次;之后监听 storage 事件(小辈 publish 后长辈这边能立刻刷新)
   useEffect(() => {
-    let cancelled = false
-    fetchTodayDiary({ user_id: SENIOR_USER_ID }).then((d) => {
-      if (cancelled) return
-      setDiary(d)
-      setSpokenText(d?.narration ?? '')
-    })
     const onStorage = (e: StorageEvent) => {
       if (e.key !== STORAGE_KEY) return
-      fetchTodayDiary({ user_id: SENIOR_USER_ID }).then((d) => {
-        if (cancelled) return
-        setDiary(d)
-        setSceneIdx(0)
-        setPaused(false)
-        setSpokenText(d?.narration ?? '')
-        setThinking(false)
-      })
+      const next = loadDiary()
+      setDiary(next)
+      setSceneIdx(0)
+      setPaused(false)
+      setSpokenText(next?.narration ?? '')
+      setThinking(false)
     }
     window.addEventListener('storage', onStorage)
-    return () => {
-      cancelled = true
-      window.removeEventListener('storage', onStorage)
-    }
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   const total = diary?.items.length ?? 0
@@ -71,28 +115,30 @@ export default function SeniorView() {
   const replay = () => {
     setPaused(false)
     setSpokenText(diary?.narration ?? '')
+    // setState 相同值不会触发 useEffect,所以先 stop 再重播
     tts.stop()
     setTimeout(() => tts.play(), 0)
   }
 
+  // ASR 流程:按住开始,松开结束,拿到 transcript 调后端,回复丢给 TTS 播
   const handleFinalTranscript = useCallback(
     async (transcript: string) => {
       console.log('[链路] ASR 完整识别:', transcript)
       setThinking(true)
       try {
-        const summary_id = diary?.diary_id ?? ''
-        console.log('[链路] 调用 chatWithAgent...')
-        const { reply_text } = await chatWithAgent({ query: transcript, summary_id })
-        console.log('[链路] 后端回复:', reply_text)
-        setSpokenText(reply_text)
+        console.log('[链路] 调用 askBackend...')
+        const { text } = await askBackend({ transcript })
+        console.log('[链路] 后端回复:', text)
+        console.log('[链路] 交给 TTS 播报')
+        setSpokenText(text)
       } catch (err) {
-        console.error('[链路] chatWithAgent 失败:', err)
+        console.error('[链路] askBackend 失败:', err)
         setSpokenText('妈妈，我这边好像出了点问题，您稍等一下再试试。')
       } finally {
         setThinking(false)
       }
     },
-    [diary?.diary_id],
+    [],
   )
 
   const startListening = () => {
@@ -104,6 +150,8 @@ export default function SeniorView() {
     if (asr.status === 'listening') asr.stop()
   }
 
+  // 「按住说话」可按条件:ASR 可用、不在 thinking、有日记。
+  // 如果日记有小作文,还需等 TTS 念完;没小作文就直接放行(比如接口挂了兜底为空)
   const micUsable = asr.status !== 'unsupported' && asr.status !== 'denied'
   const narrationReady = tts.sentences.length === 0 || tts.status === 'ended'
   const canTalk = narrationReady && !thinking && micUsable && diary !== null
@@ -184,14 +232,14 @@ export default function SeniorView() {
                     <div className="relative aspect-[3/2] h-full max-w-full overflow-hidden rounded-xl bg-stone-200 shadow-lg shadow-stone-900/20">
                       {diary.items.map((s, i) => (
                         <div
-                          key={s.item_id}
+                          key={s.id}
                           className={`absolute inset-0 transition-opacity duration-700 ${
                             i === safeIdx ? 'opacity-100' : 'opacity-0'
                           }`}
                         >
-                          {s.type === 'image' ? (
+                          {s.kind === 'image' ? (
                             <img
-                              src={s.content}
+                              src={s.url}
                               alt=""
                               className="h-full w-full object-cover"
                             />
@@ -235,7 +283,9 @@ export default function SeniorView() {
                     </div>
                   </div>
 
+                  {/* 字幕区:优先展示 ASR/thinking 状态,否则展示 TTS */}
                   <div className="relative mt-3 flex min-h-[6.5rem] w-full max-w-3xl flex-none flex-col items-center justify-center px-4 text-center">
+                    {/* 跳过讲述:小作文没念完就始终可见,和当前渲染分支解耦 */}
                     {hasNarration &&
                       !showListeningSubtitle &&
                       !showThinkingSubtitle &&
@@ -336,7 +386,7 @@ export default function SeniorView() {
                       )
                     ) : (
                       scene &&
-                      scene.type === 'social' && (
+                      scene.kind === 'social' && (
                         <p className="px-4 text-lg leading-relaxed text-stone-800 md:text-xl">
                           {scene.author}发在朋友圈里
                         </p>

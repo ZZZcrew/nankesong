@@ -1,36 +1,11 @@
-import { useEffect, useState } from 'react'
-import { fetchMessages, markMessagesRead, type Message } from '../api/messages'
-import { JUNIOR_USER_ID } from '../api/client'
+import { loadElderMessages } from '../api/mockMessages'
 
 type Props = {
   onBack: () => void
 }
 
 export default function MessagesPage({ onBack }: Props) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchMessages({ user_id: JUNIOR_USER_ID, limit: 20 })
-      .then((res) => {
-        if (cancelled) return
-        setMessages(res.messages)
-        // 进入列表立刻标记所有未读为已读(乐观更新),后端异步确认
-        const unreadIds = res.messages.filter((m) => m.unread).map((m) => m.message_id)
-        if (unreadIds.length > 0) {
-          markMessagesRead({ message_ids: unreadIds, user_id: JUNIOR_USER_ID }).catch(() => {
-            // 容错:失败不回滚已读状态,下次刷新再纠正
-          })
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const messages = loadElderMessages()
 
   return (
     <div className="flex flex-1 flex-col bg-[#fbf8f2]">
@@ -53,14 +28,12 @@ export default function MessagesPage({ onBack }: Props) {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-3 px-4 pb-10">
-        {loading ? (
-          <div className="py-20 text-center text-sm text-stone-400">加载中…</div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="mt-20 text-center text-sm text-stone-400">暂无留言</div>
         ) : (
           messages.map((m) => (
             <article
-              key={m.message_id}
+              key={m.id}
               className={`overflow-hidden rounded-2xl border shadow-sm transition ${
                 m.unread ? 'border-amber-300 bg-[#fdf7e8]' : 'border-stone-200 bg-white'
               }`}
@@ -83,7 +56,7 @@ export default function MessagesPage({ onBack }: Props) {
                 </div>
               </div>
 
-              {m.ai_reply ? (
+              {m.reply ? (
                 <div className="border-t border-amber-100/70 bg-[#fffdf7] px-4 py-3">
                   <div className="flex items-start gap-3">
                     <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-stone-100 text-stone-500">
@@ -100,7 +73,7 @@ export default function MessagesPage({ onBack }: Props) {
                       <div className="text-[11px] font-medium text-stone-500">
                         AI 已代为回复
                       </div>
-                      <p className="mt-1 text-sm leading-relaxed text-stone-700">{m.ai_reply}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-stone-700">{m.reply}</p>
                     </div>
                   </div>
                 </div>
