@@ -42,6 +42,7 @@ export function useCloudTTS(text: string): UseCloudTTS {
   const cancelledRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const unlockBoundRef = useRef(false)
 
   const cleanupAudio = () => {
     const a = audioRef.current
@@ -95,6 +96,21 @@ export function useCloudTTS(text: string): UseCloudTTS {
           if (err instanceof DOMException && err.name === 'NotAllowedError') {
             // 浏览器 autoplay 阻止,需要用户手势
             setStatus('blocked')
+            // 监听一次任意手势,无感重试,从当前句继续
+            if (!unlockBoundRef.current) {
+              unlockBoundRef.current = true
+              const resume = () => {
+                document.removeEventListener('pointerdown', resume, true)
+                document.removeEventListener('touchstart', resume, true)
+                document.removeEventListener('keydown', resume, true)
+                unlockBoundRef.current = false
+                if (cancelledRef.current) return
+                speakFrom(idxRef.current)
+              }
+              document.addEventListener('pointerdown', resume, true)
+              document.addEventListener('touchstart', resume, true)
+              document.addEventListener('keydown', resume, true)
+            }
             return
           }
           // 其他错误(鉴权/服务未开通/网络等)立即中断,不再继续

@@ -336,14 +336,7 @@ export default function SeniorView() {
                         )}
                       </>
                     ) : hasNarration ? (
-                      ttsStatus === 'blocked' ? (
-                        <button
-                          onClick={() => tts.play()}
-                          className="rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-stone-800 active:translate-y-px"
-                        >
-                          点击开始讲述今天的故事
-                        </button>
-                      ) : ttsStatus === 'error' ? (
+                      ttsStatus === 'error' ? (
                         <div className="px-4">
                           <p className="mb-2 text-sm font-medium text-red-600">TTS 出错了</p>
                           <p className="max-w-prose break-all text-xs leading-relaxed text-stone-500">
