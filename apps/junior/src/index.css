@@ -9,3 +9,194 @@ html, body, #root {
   background: #f7f5f0;
   color: #1f1f1f;
 }
+
+/* ===========================================================
+   筛选页（filter）专属样式：从原 apps/filter 整体迁移而来
+   全部 scoped 在 .filter-app 之下，避免和 Tailwind 工具类冲突
+   =========================================================== */
+
+/* 进入 filter 时由 FilterPage 给 body 加 filter-active：屏蔽
+   浏览器默认滚动/手势，背景换深色，匹配原本的移动端体验 */
+body.filter-active {
+  overflow: hidden;
+  touch-action: none;
+  background: #111;
+  color: #eee;
+  overscroll-behavior: none;
+}
+
+.filter-app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  background: #111;
+  color: #eee;
+}
+
+.filter-app * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filter-app .topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.filter-app .topbar .count {
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-app .topbar .reset {
+  background: transparent;
+  border: 1px solid #333;
+  color: #ddd;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+}
+
+.filter-app .deck {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-app .card {
+  position: absolute;
+  width: 86vw;
+  max-width: 420px;
+  height: 70vh;
+  max-height: 620px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #222;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  will-change: transform;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.filter-app .card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.filter-app .card .label {
+  position: absolute;
+  top: 24px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 2px;
+  border: 3px solid currentColor;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.filter-app .card .label.keep {
+  right: 24px;
+  color: #4ade80;
+  transform: rotate(12deg);
+}
+
+.filter-app .card .label.trash {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #f87171;
+}
+
+.filter-app .hint {
+  text-align: center;
+  color: #888;
+  font-size: 12px;
+  padding: 10px 16px 18px;
+  line-height: 1.6;
+}
+
+.filter-app .actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 16px 16px;
+}
+
+.filter-app .actions button {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  font-size: 28px;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.filter-app .actions .trash { background: #ef4444; }
+.filter-app .actions .keep { background: #22c55e; }
+
+.filter-app .results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.filter-app .results h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.filter-app .results .grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.filter-app .results .grid img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.filter-app .results .submit {
+  margin-top: auto;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.filter-app .results .submit:disabled {
+  opacity: 0.6;
+}
+
+.filter-app .empty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: #888;
+  font-size: 15px;
+  text-align: center;
+  padding: 0 24px;
+}

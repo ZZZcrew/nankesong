@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import Deck from './Deck'
-import Results from './Results'
-import { loadImages, type ImageItem } from './images'
+import Deck from '../filter/Deck'
+import Results from '../filter/Results'
+import { loadImages, type ImageItem } from '../filter/images'
 
 type Phase = 'swiping' | 'done'
 
-export default function App() {
+type Props = {
+  onProceed: () => void
+}
+
+export default function FilterPage({ onProceed }: Props) {
   const initial = useMemo(() => loadImages(), [])
   const [queue, setQueue] = useState<ImageItem[]>(initial)
   const [kept, setKept] = useState<ImageItem[]>([])
 
   useEffect(() => {
-    if (initial.length === 0) return
-  }, [initial])
+    document.body.classList.add('filter-active')
+    return () => document.body.classList.remove('filter-active')
+  }, [])
 
   const phase: Phase = queue.length === 0 ? 'done' : 'swiping'
 
@@ -32,9 +37,9 @@ export default function App() {
 
   if (initial.length === 0) {
     return (
-      <div className="app">
+      <div className="filter-app">
         <div className="topbar">
-          <span>图片筛选</span>
+          <span>素材清理</span>
         </div>
         <div className="empty">
           没有找到图片。<br />
@@ -45,7 +50,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="filter-app">
       <div className="topbar">
         <span className="count">
           {phase === 'swiping'
@@ -67,7 +72,7 @@ export default function App() {
           </div>
         </>
       ) : (
-        <Results kept={kept} onReset={reset} />
+        <Results kept={kept} onReset={reset} onProceed={onProceed} />
       )}
     </div>
   )

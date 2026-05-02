@@ -5,7 +5,7 @@ export type ImageItem = {
 }
 
 const modules = import.meta.glob(
-  './assets/images/*.{jpg,jpeg,png,webp,gif,avif,JPG,JPEG,PNG,WEBP,GIF,AVIF}',
+  '../assets/images/*.{jpg,jpeg,png,webp,gif,avif,JPG,JPEG,PNG,WEBP,GIF,AVIF}',
   { eager: true, query: '?url', import: 'default' },
 )
 
