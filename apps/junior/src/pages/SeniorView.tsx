@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react'
 
-type DiaryItem = {
+type ImageDiaryItem = {
+  kind: 'image'
   id: string
   url: string
   caption: string
 }
+
+type SocialDiaryItem = {
+  kind: 'social'
+  id: string
+  author: string
+  time: string
+  text: string
+}
+
+type DiaryItem = ImageDiaryItem | SocialDiaryItem
 
 type Diary = {
   date: string
@@ -22,6 +33,10 @@ function loadDiary(): Diary | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Diary
     if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) return null
+    // 向后兼容:旧格式的 item 没有 kind 字段,按 image 处理
+    parsed.items = parsed.items.map((it) =>
+      it.kind ? it : ({ ...(it as object), kind: 'image' } as DiaryItem),
+    )
     return parsed
   } catch {
     return null
@@ -101,14 +116,37 @@ export default function SeniorView() {
                   <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                     <div className="relative aspect-[3/2] h-full max-w-full overflow-hidden rounded-xl bg-stone-200 shadow-lg shadow-stone-900/20">
                       {diary.items.map((s, i) => (
-                        <img
+                        <div
                           key={s.id}
-                          src={s.url}
-                          alt=""
-                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                          className={`absolute inset-0 transition-opacity duration-700 ${
                             i === safeIdx ? 'opacity-100' : 'opacity-0'
                           }`}
-                        />
+                        >
+                          {s.kind === 'image' ? (
+                            <img
+                              src={s.url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-[#f5efe3] via-[#faf6ec] to-[#efe6d2] px-10 py-8 text-center">
+                              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-stone-600 shadow-sm">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                                  <path d="M9 9h.01M15 9h.01" />
+                                </svg>
+                                来自朋友圈
+                              </div>
+                              <p className="max-w-[22ch] text-xl font-medium leading-relaxed tracking-tight text-stone-800 md:text-2xl">
+                                “{s.text}”
+                              </p>
+                              <div className="mt-4 text-sm text-stone-500">
+                                — {s.author} · {s.time}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ))}
 
                       <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-2">
@@ -116,7 +154,7 @@ export default function SeniorView() {
                           <button
                             key={i}
                             onClick={() => setSceneIdx(i)}
-                            aria-label={`第 ${i + 1} 张`}
+                            aria-label={`第 ${i + 1} 条`}
                             className={`h-2 rounded-full transition-all ${
                               i === safeIdx ? 'w-8 bg-white' : 'w-2 bg-white/60'
                             }`}
@@ -132,7 +170,9 @@ export default function SeniorView() {
 
                   {scene && (
                     <p className="mt-3 flex-none px-4 text-center text-lg leading-relaxed text-stone-800 md:text-xl">
-                      {scene.caption}
+                      {scene.kind === 'image'
+                        ? scene.caption
+                        : `${scene.author}发在朋友圈里`}
                     </p>
                   )}
                 </main>
@@ -142,7 +182,7 @@ export default function SeniorView() {
                     <div className="flex-1">
                       <div className="mb-1 flex items-baseline justify-between">
                         <span className="text-xs font-medium text-stone-600">
-                          {paused ? '已暂停' : '正在轮播'} · 第 {safeIdx + 1} / {total} 张
+                          {paused ? '已暂停' : '正在轮播'} · 第 {safeIdx + 1} / {total} 条
                         </span>
                         <span className="text-[11px] text-stone-400">每 5 秒切换</span>
                       </div>

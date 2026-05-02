@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useSprings, animated, to } from '@react-spring/web'
 import { useDrag } from '@use-gesture/react'
-import type { ImageItem } from './images'
+import type { FeedItem } from './images'
 
 type Props = {
-  queue: ImageItem[]
-  onKeep: (item: ImageItem) => void
-  onTrash: (item: ImageItem) => void
+  queue: FeedItem[]
+  onKeep: (item: FeedItem) => void
+  onTrash: (item: FeedItem) => void
 }
 
 const VISIBLE = 3
@@ -120,7 +120,18 @@ export default function Deck({ queue, onKeep, onTrash }: Props) {
             }}
             {...(isTop ? bind(item.id) : {})}
           >
-            <img src={item.url} alt={item.name} draggable={false} />
+            {item.kind === 'image' ? (
+              <img src={item.url} alt={item.name} draggable={false} />
+            ) : (
+              <div className="social">
+                <div className="social-meta">
+                  <span className="social-source">朋友圈</span>
+                  <span className="social-author">{item.author}</span>
+                  <span className="social-time">{item.time}</span>
+                </div>
+                <div className="social-text">{item.text}</div>
+              </div>
+            )}
             {isTop && (
               <>
                 <animated.span

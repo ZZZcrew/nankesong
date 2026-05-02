@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import type { ImageItem } from '../filter/images'
+import { useMemo, useState } from 'react'
+import type { FeedItem } from '../filter/images'
 
 type Props = {
-  kept: ImageItem[]
+  kept: FeedItem[]
   onBack: () => void
 }
 
@@ -23,8 +23,25 @@ const CAPTIONS = [
   '晚上拐进一家小店吃了碗面，汤头不错。',
 ]
 
+type AnnotatedImage = { kind: 'image'; id: string; url: string; name: string; caption: string }
+type AnnotatedSocial = { kind: 'social'; id: string; author: string; time: string; text: string }
+type AnnotatedItem = AnnotatedImage | AnnotatedSocial
+
+function annotate(kept: FeedItem[]): AnnotatedItem[] {
+  let imgIdx = 0
+  return kept.map((it) => {
+    if (it.kind === 'image') {
+      const caption = CAPTIONS[imgIdx % CAPTIONS.length]
+      imgIdx++
+      return { ...it, caption }
+    }
+    return it
+  })
+}
+
 export default function AuditPage({ kept, onBack }: Props) {
   const [status, setStatus] = useState<SendStatus>('idle')
+  const items = useMemo(() => annotate(kept), [kept])
 
   const send = () => {
     setStatus('sending')
@@ -32,11 +49,11 @@ export default function AuditPage({ kept, onBack }: Props) {
       date: DIARY_DATE,
       title: DIARY_TITLE,
       publishedAt: Date.now(),
-      items: kept.map((img, i) => ({
-        id: img.id,
-        url: img.url,
-        caption: CAPTIONS[i % CAPTIONS.length],
-      })),
+      items: items.map((it) =>
+        it.kind === 'image'
+          ? { kind: 'image', id: it.id, url: it.url, caption: it.caption }
+          : { kind: 'social', id: it.id, author: it.author, time: it.time, text: it.text },
+      ),
     }
     try {
       localStorage.setItem('nks-diary', JSON.stringify(diary))
@@ -56,9 +73,9 @@ export default function AuditPage({ kept, onBack }: Props) {
             <path d="m21 17-5-5-4 4-3-3-6 6" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold tracking-tight text-stone-800">还没有选好照片</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-stone-800">还没有选好内容</h2>
         <p className="mt-1.5 max-w-[32ch] text-sm leading-relaxed text-stone-500">
-          请先回到第一步"清理素材"，筛选出要给妈妈看的照片。
+          请先回到第一步"清理素材"，筛选出要给妈妈看的照片或朋友圈。
         </p>
         <button
           onClick={onBack}
@@ -76,36 +93,53 @@ export default function AuditPage({ kept, onBack }: Props) {
         <div className="text-xs tracking-wide text-stone-500">{DIARY_DATE} · 即将发送</div>
         <h1 className="mt-1 text-2xl font-semibold text-stone-900">{DIARY_TITLE}</h1>
         <p className="mt-1 text-sm text-stone-500">
-          共 {kept.length} 张图片 · 妈妈将在相框里看到下面的内容
+          共 {items.length} 条内容 · 妈妈将在相框里看到下面的内容
         </p>
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4">
-        {kept.map((img, i) => (
-          <article
-            key={img.id}
-            className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
-          >
-            <div className="relative aspect-[3/2] bg-stone-100">
-              <img
-                src={img.url}
-                alt={img.name}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white backdrop-blur">
-                {i + 1} / {kept.length}
+        {items.map((it, i) =>
+          it.kind === 'image' ? (
+            <article
+              key={it.id}
+              className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+            >
+              <div className="relative aspect-[3/2] bg-stone-100">
+                <img
+                  src={it.url}
+                  alt={it.name}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <div className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white backdrop-blur">
+                  {i + 1} / {items.length}
+                </div>
               </div>
-            </div>
-            <div className="px-4 py-3">
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-stone-400">
-                AI 配文
+              <div className="px-4 py-3">
+                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                  AI 配文
+                </div>
+                <p className="text-base leading-relaxed text-stone-800">{it.caption}</p>
               </div>
-              <p className="text-base leading-relaxed text-stone-800">
-                {CAPTIONS[i % CAPTIONS.length]}
-              </p>
-            </div>
-          </article>
-        ))}
+            </article>
+          ) : (
+            <article
+              key={it.id}
+              className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+            >
+              <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-4 py-2.5">
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  朋友圈
+                </span>
+                <span className="text-xs font-medium text-stone-700">{it.author}</span>
+                <span className="text-[11px] text-stone-400">· {it.time}</span>
+                <span className="ml-auto text-[11px] text-stone-400">
+                  {i + 1} / {items.length}
+                </span>
+              </div>
+              <p className="px-4 py-4 text-base leading-relaxed text-stone-800">{it.text}</p>
+            </article>
+          ),
+        )}
       </main>
 
       {/* 底部固定发送按钮 */}

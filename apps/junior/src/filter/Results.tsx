@@ -1,25 +1,32 @@
-import type { ImageItem } from './images'
+import type { FeedItem } from './images'
 
 type Props = {
-  kept: ImageItem[]
+  kept: FeedItem[]
   onReset: () => void
-  onProceed: (kept: ImageItem[]) => void
+  onProceed: (kept: FeedItem[]) => void
 }
 
 export default function Results({ kept, onReset, onProceed }: Props) {
   return (
     <div className="results">
       <h2>
-        保留 <span className="tabular-nums">{kept.length}</span> 张
+        保留 <span className="tabular-nums">{kept.length}</span> 条
       </h2>
 
       {kept.length === 0 ? (
-        <div className="empty">没有保留任何照片</div>
+        <div className="empty">没有保留任何内容</div>
       ) : (
         <div className="grid">
-          {kept.map((k) => (
-            <img key={k.id} src={k.url} alt={k.name} />
-          ))}
+          {kept.map((k) =>
+            k.kind === 'image' ? (
+              <img key={k.id} src={k.url} alt={k.name} />
+            ) : (
+              <div key={k.id} className="thumb-social">
+                <div className="thumb-social-src">朋友圈</div>
+                <div className="thumb-social-text">{k.text}</div>
+              </div>
+            ),
+          )}
         </div>
       )}
 

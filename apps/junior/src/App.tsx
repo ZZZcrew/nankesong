@@ -2,13 +2,13 @@ import { useState } from 'react'
 import FilterPage from './pages/FilterPage'
 import AuditPage from './pages/AuditPage'
 import SeniorView from './pages/SeniorView'
-import type { ImageItem } from './filter/images'
+import type { FeedItem } from './filter/images'
 
 type Step = 'filter' | 'audit'
 
 const STEPS: { key: Step; label: string; sub: string }[] = [
   { key: 'filter', label: '清理素材', sub: '上滑删除不想给妈妈看的' },
-  { key: 'audit', label: '预览发送', sub: '确认图片和 AI 配文' },
+  { key: 'audit', label: '预览发送', sub: '确认内容和 AI 配文' },
 ]
 
 export default function App() {
@@ -20,10 +20,10 @@ export default function App() {
 
 function JuniorApp() {
   const [step, setStep] = useState<Step>('filter')
-  const [kept, setKept] = useState<ImageItem[]>([])
+  const [kept, setKept] = useState<FeedItem[]>([])
 
-  const handleProceed = (images: ImageItem[]) => {
-    setKept(images)
+  const handleProceed = (items: FeedItem[]) => {
+    setKept(items)
     setStep('audit')
   }
 
