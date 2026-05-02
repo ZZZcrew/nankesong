@@ -150,3 +150,18 @@ def patch_diary(diary_id: int, payload: DiaryPatchIn, request: Request):
             d.body_json = [p.model_dump() for p in payload.paragraphs]
         s.flush()
         return _to_out(d)
+
+
+@router.post("/{diary_id}/publish", response_model=DiaryOut)
+def publish_diary(diary_id: int, request: Request):
+    engine = engine_from_request(request)
+    with session_scope(engine) as s:
+        d = s.get(Diary, diary_id)
+        if not d:
+            raise HTTPException(404, "diary not found")
+        if d.status == "published":
+            raise HTTPException(409, "already published")
+        d.status = "published"
+        d.published_at = datetime.utcnow()
+        s.flush()
+        return _to_out(d)
