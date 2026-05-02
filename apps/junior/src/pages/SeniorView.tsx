@@ -30,7 +30,7 @@ type Diary = {
 }
 
 const STORAGE_KEY = 'nks-diary'
-const AUTO_INTERVAL_MS = 5000
+const AUTO_INTERVAL_MS = 10000
 
 function loadDiary(): Diary | null {
   try {
@@ -407,7 +407,7 @@ export default function SeniorView() {
                         <span className="text-xs font-medium text-stone-600">
                           {paused ? '已暂停' : '正在轮播'} · 第 {safeIdx + 1} / {total} 条
                         </span>
-                        <span className="text-[11px] text-stone-400">每 5 秒切换</span>
+                        <span className="text-[11px] text-stone-400">每 10 秒切换</span>
                       </div>
                       <div className="h-1 overflow-hidden rounded-full bg-stone-200">
                         <div
