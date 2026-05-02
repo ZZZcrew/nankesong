@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNarrationTTS } from '../tts/useNarrationTTS'
+import { useCloudTTS } from '../tts/useCloudTTS'
 import { useASR } from '../asr/useASR'
 import { askBackend } from '../api/ask'
+import { loadMockDiary } from '../api/mockDiary'
 
 type ImageDiaryItem = {
   kind: 'image'
@@ -72,7 +73,7 @@ export default function SeniorView() {
   const [spokenText, setSpokenText] = useState<string>(diary?.narration ?? '')
   const [thinking, setThinking] = useState(false)
 
-  const tts = useNarrationTTS(spokenText)
+  const tts = useCloudTTS(spokenText)
   const asr = useASR('zh-CN')
 
   useEffect(() => {
@@ -122,11 +123,16 @@ export default function SeniorView() {
   // ASR 流程:按住开始,松开结束,拿到 transcript 调后端,回复丢给 TTS 播
   const handleFinalTranscript = useCallback(
     async (transcript: string) => {
+      console.log('[链路] ASR 完整识别:', transcript)
       setThinking(true)
       try {
+        console.log('[链路] 调用 askBackend...')
         const { text } = await askBackend({ transcript })
+        console.log('[链路] 后端回复:', text)
+        console.log('[链路] 交给 TTS 播报')
         setSpokenText(text)
-      } catch {
+      } catch (err) {
+        console.error('[链路] askBackend 失败:', err)
         setSpokenText('妈妈，我这边好像出了点问题，您稍等一下再试试。')
       } finally {
         setThinking(false)
@@ -205,6 +211,12 @@ export default function SeniorView() {
                 <p className="mt-2 max-w-[32ch] text-sm leading-relaxed text-stone-500">
                   他还在整理今天的照片，完成后会自动出现在这里。
                 </p>
+                <button
+                  onClick={() => loadMockDiary()}
+                  className="mt-6 rounded-full border border-stone-300 bg-white px-4 py-2 text-xs font-medium text-stone-600 shadow-sm transition hover:bg-stone-50 active:translate-y-px"
+                >
+                  加载示例日记（测试用）
+                </button>
               </div>
             ) : (
               <>
@@ -326,6 +338,19 @@ export default function SeniorView() {
                         >
                           点击开始讲述今天的故事
                         </button>
+                      ) : ttsStatus === 'error' ? (
+                        <div className="px-4">
+                          <p className="mb-2 text-sm font-medium text-red-600">TTS 出错了</p>
+                          <p className="max-w-prose break-all text-xs leading-relaxed text-stone-500">
+                            {tts.error ?? '未知错误'}
+                          </p>
+                          <button
+                            onClick={() => tts.play()}
+                            className="mt-3 rounded-full border border-stone-300 bg-white px-4 py-1.5 text-xs font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 active:translate-y-px"
+                          >
+                            重试
+                          </button>
+                        </div>
                       ) : (
                         <>
                           {prevSentence && (
