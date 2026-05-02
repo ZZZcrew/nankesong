@@ -1,5 +1,5 @@
 from datetime import date as date_cls, datetime, timedelta
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
@@ -96,3 +96,39 @@ def generate(payload: GenerateIn, request: Request):
         s.add(d)
         s.flush()
         return _to_out(d)
+
+
+@router.get("/today", response_model=DiaryOut)
+def get_today(request: Request, role: str = Query(..., pattern="^(junior|senior)$")):
+    engine = engine_from_request(request)
+    today = date_cls.today()
+    with session_scope(engine) as s:
+        q = s.query(Diary).filter(Diary.date == today)
+        if role == "senior":
+            q = q.filter(Diary.status == "published")
+        d = q.order_by(Diary.id.desc()).first()
+        if not d:
+            raise HTTPException(404, "no diary for today")
+
+        out = _to_out(d)
+
+        if role == "junior":
+            from app.models import Comment
+            from app.schemas import CommentOut
+            comments = (
+                s.query(Comment)
+                .filter(Comment.diary_id == d.id)
+                .order_by(Comment.created_at)
+                .all()
+            )
+            out.comments = [
+                CommentOut(
+                    id=c.id, diary_id=c.diary_id, author_id=c.author_id,
+                    content=c.content, audio_url=c.audio_url, created_at=c.created_at,
+                ) for c in comments
+            ]
+        else:  # senior
+            out.paragraphs = [p for p in out.paragraphs if not p.hidden]
+            # comments 留空：长辈看自己写的留言无意义
+
+        return out
