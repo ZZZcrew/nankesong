@@ -3,11 +3,15 @@ from typing import Iterator
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def engine_for_url(url: str) -> Engine:
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args, future=True)
+    kwargs = {"connect_args": connect_args, "future": True}
+    if url == "sqlite:///:memory:" or url == "sqlite://":
+        kwargs["poolclass"] = StaticPool
+    return create_engine(url, **kwargs)
 
 
 @contextmanager
