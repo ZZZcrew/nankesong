@@ -1,13 +1,15 @@
 """Mock 数据生成脚本。
 
 运行：cd backend && python -m scripts.mock_data
+
+生成两天的数据：今天 7 条，昨天 5 条。
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models import Base, RawData
 from app.models.base import SessionLocal, engine
 
-MOCK_ITEMS = [
+TODAY_ITEMS = [
     {
         "item_id": "raw_001",
         "type": "image",
@@ -52,6 +54,39 @@ MOCK_ITEMS = [
     },
 ]
 
+YESTERDAY_ITEMS = [
+    {
+        "item_id": "raw_101",
+        "type": "image",
+        "content": "https://picsum.photos/seed/cycling/800/600",
+        "description": "周末骑行，社畜也要有自己的生活",
+    },
+    {
+        "item_id": "raw_102",
+        "type": "text",
+        "content": "项目终于上线了，绝绝子",
+        "description": None,
+    },
+    {
+        "item_id": "raw_103",
+        "type": "image",
+        "content": "https://picsum.photos/seed/pasta/800/600",
+        "description": "学做了意大利面，第一次还挺成功",
+    },
+    {
+        "item_id": "raw_104",
+        "type": "text",
+        "content": "deadline 前夜 emo 中",
+        "description": None,
+    },
+    {
+        "item_id": "raw_105",
+        "type": "image",
+        "content": "https://picsum.photos/seed/sunset/800/600",
+        "description": "下班路上的晚霞，今天没那么累",
+    },
+]
+
 
 def main() -> None:
     Base.metadata.create_all(bind=engine)
@@ -59,7 +94,9 @@ def main() -> None:
     try:
         deleted = db.query(RawData).delete()
         now = datetime.now()
-        for item in MOCK_ITEMS:
+        yesterday = now - timedelta(days=1)
+
+        for item in TODAY_ITEMS:
             db.add(RawData(
                 item_id=item["item_id"],
                 type=item["type"],
@@ -68,10 +105,20 @@ def main() -> None:
                 status="pending",
                 created_at=now,
             ))
+        for item in YESTERDAY_ITEMS:
+            db.add(RawData(
+                item_id=item["item_id"],
+                type=item["type"],
+                content=item["content"],
+                description=item["description"],
+                status="pending",
+                created_at=yesterday,
+            ))
         db.commit()
-        print(f"数据库表创建成功")
+        total = len(TODAY_ITEMS) + len(YESTERDAY_ITEMS)
+        print("数据库表创建成功")
         print(f"清理旧数据 {deleted} 条")
-        print(f"已生成 {len(MOCK_ITEMS)} 条 Mock 数据")
+        print(f"已生成 {total} 条 Mock 数据（今天 {len(TODAY_ITEMS)} 条 + 昨天 {len(YESTERDAY_ITEMS)} 条）")
     finally:
         db.close()
 
