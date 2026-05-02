@@ -1,25 +1,77 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Deck from '../filter/Deck'
 import Results from '../filter/Results'
-import { loadFeed, type FeedItem } from '../filter/images'
+import type { FeedItem } from '../filter/images'
+import { fetchRawData, type RawItem } from '../api/data'
 
-type Phase = 'swiping' | 'done'
+type Phase = 'loading' | 'swiping' | 'done' | 'empty' | 'error'
 
 type Props = {
   onProceed: (kept: FeedItem[]) => void
 }
 
+// 把后端的 RawItem 适配成现有 UI 用的 FeedItem(image / social)
+function rawToFeed(raw: RawItem[]): FeedItem[] {
+  return raw.flatMap<FeedItem>((it) => {
+    if (it.type === 'image') {
+      return [{ kind: 'image', id: it.item_id, url: it.content ?? '', name: it.item_id }]
+    }
+    if (it.type === 'text') {
+      // mock 里 description 用 "author | time" 编码;真实后端可能给 null,做兜底
+      const desc = it.description ?? ''
+      const [author = '小明', time = ''] = desc.split('|').map((s) => s.trim())
+      return [{ kind: 'social', id: it.item_id, author, time, text: it.content ?? '' }]
+    }
+    return [] // video 暂不展示
+  })
+}
+
+function todayStr(): string {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
 export default function FilterPage({ onProceed }: Props) {
-  const initial = useMemo(() => loadFeed(), [])
-  const [queue, setQueue] = useState<FeedItem[]>(initial)
+  const [initial, setInitial] = useState<FeedItem[]>([])
+  const [queue, setQueue] = useState<FeedItem[]>([])
   const [kept, setKept] = useState<FeedItem[]>([])
+  const [phase, setPhase] = useState<Phase>('loading')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     document.body.classList.add('filter-active')
     return () => document.body.classList.remove('filter-active')
   }, [])
 
-  const phase: Phase = queue.length === 0 ? 'done' : 'swiping'
+  useEffect(() => {
+    let cancelled = false
+    setPhase('loading')
+    setErrorMsg(null)
+    fetchRawData({ date: todayStr(), user_id: 'user_junior' })
+      .then((res) => {
+        if (cancelled) return
+        const feed = rawToFeed(res.items)
+        setInitial(feed)
+        setQueue(feed)
+        setKept([])
+        setPhase(feed.length === 0 ? 'empty' : 'swiping')
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setErrorMsg(err instanceof Error ? err.message : String(err))
+        setPhase('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // 滑动完成时切到 done
+  useEffect(() => {
+    if (phase === 'swiping' && queue.length === 0) setPhase('done')
+  }, [phase, queue.length])
 
   const handleKeep = (item: FeedItem) => {
     setKept((prev) => [...prev, item])
@@ -33,17 +85,48 @@ export default function FilterPage({ onProceed }: Props) {
   const reset = () => {
     setQueue(initial)
     setKept([])
+    setPhase(initial.length === 0 ? 'empty' : 'swiping')
   }
 
-  if (initial.length === 0) {
+  if (phase === 'loading') {
+    return (
+      <div className="filter-app">
+        <div className="topbar">
+          <span>素材清理</span>
+        </div>
+        <div className="empty">正在拉取今日素材…</div>
+      </div>
+    )
+  }
+
+  if (phase === 'error') {
     return (
       <div className="filter-app">
         <div className="topbar">
           <span>素材清理</span>
         </div>
         <div className="empty">
-          没有找到可筛选的内容。<br />
-          请把图片放到 <code>src/assets/images/</code> 目录，或在 <code>src/filter/images.ts</code> 里加朋友圈 mock，然后刷新。
+          拉取失败：{errorMsg}
+          <br />
+          <button className="reset" onClick={reset} style={{ marginTop: 12 }}>
+            重试
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'empty') {
+    return (
+      <div className="filter-app">
+        <div className="topbar">
+          <span>素材清理</span>
+        </div>
+        <div className="empty">
+          今天还没有可筛选的内容。
+          <br />
+          请把图片放到 <code>src/assets/images/</code>，或在 <code>src/filter/images.ts</code> 里加朋友圈
+          mock。
         </div>
       </div>
     )
