@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from app.db import engine_for_url
 from app.models import Base
-from app.routers import ingest as ingest_router
+from app.routers import ingest as ingest_router, clips as clips_router
 
 app = FastAPI(title="AI 家庭日记 API")
 
@@ -23,3 +23,4 @@ def health():
 
 
 app.include_router(ingest_router.router)
+app.include_router(clips_router.router)
