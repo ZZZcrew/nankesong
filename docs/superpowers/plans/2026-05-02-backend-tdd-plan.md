@@ -76,16 +76,17 @@ backend/
 2. Task 2 · 配置模块
 3. Task 3 · 数据库引擎 + 会话
 4. Task 4 · SQLAlchemy 6 张表
-5. Task 5 · Pydantic schemas
+5. Task 5 · Pydantic schemas（含 DiaryOut.comments 字段）
 6. Task 6 · pytest 公共 fixture
 7. Task 7 · FFmpeg 抽帧 service
 8. Task 8 · 视觉描述 service
-9. Task 9 · `POST /ingest/clip`
+9. Task 9 · `POST /ingest/clip`（最小版）
+9b. Task 9b · 接通 `/ingest/clip` 的"无 caption 自动跑视觉"分支
 10. Task 10 · `POST /ingest/social`
 11. Task 11 · `GET /clips`
 12. Task 12 · 日记生成 service
 13. Task 13 · `POST /diary/generate`
-14. Task 14 · `GET /diary/today`
+14. Task 14 · `GET /diary/today`（含 junior 拉评论）
 15. Task 15 · `PATCH /diary/:id`（段落可见性）
 16. Task 16 · `POST /diary/:id/publish`
 17. Task 17 · `GET /diary/history`
@@ -622,6 +623,7 @@ from app.schemas import (
     DiaryOut, DiaryParagraph, DiaryPatchIn,
     CommentIn, CommentOut, AskIn, AskOut,
 )
+from datetime import date
 
 
 def test_ingest_clip_in_parses():
@@ -659,6 +661,14 @@ def test_ask_in_requires_text():
     req = AskIn(question="他几点回家？", author_id=1)
     assert req.question == "他几点回家？"
     assert req.author_id == 1
+
+
+def test_diary_out_comments_default_empty():
+    out = DiaryOut(
+        id=1, date=date(2026, 5, 2), status="draft", title="t",
+        paragraphs=[], cover_images=[], published_at=None,
+    )
+    assert out.comments == []
 ```
 
 - [ ] **Step 2: 运行测试验证失败**
@@ -705,21 +715,6 @@ class DiaryParagraph(BaseModel):
     hidden: bool = False
 
 
-class DiaryOut(BaseModel):
-    id: int
-    date: date
-    status: str
-    title: str
-    paragraphs: list[DiaryParagraph]
-    cover_images: list[str]
-    published_at: Optional[datetime]
-
-
-class DiaryPatchIn(BaseModel):
-    title: Optional[str] = None
-    paragraphs: Optional[list[DiaryParagraph]] = None
-
-
 class CommentIn(BaseModel):
     author_id: int
     content: str
@@ -733,6 +728,22 @@ class CommentOut(BaseModel):
     content: str
     audio_url: Optional[str]
     created_at: datetime
+
+
+class DiaryOut(BaseModel):
+    id: int
+    date: date
+    status: str
+    title: str
+    paragraphs: list[DiaryParagraph]
+    cover_images: list[str]
+    published_at: Optional[datetime]
+    comments: list[CommentOut] = Field(default_factory=list)
+
+
+class DiaryPatchIn(BaseModel):
+    title: Optional[str] = None
+    paragraphs: Optional[list[DiaryParagraph]] = None
 
 
 class AskIn(BaseModel):
@@ -1213,6 +1224,159 @@ Expected: 2 passed
 ```bash
 git add app/main.py app/routers/__init__.py app/routers/ingest.py tests/test_ingest.py
 git commit -m "feat(backend): POST /ingest/clip writes raw_clips row"
+```
+
+---
+
+## Task 9b: 接通 `/ingest/clip` 的"无 caption 自动跑视觉"分支
+
+**Files:**
+- Modify: `backend/app/routers/ingest.py`
+- Modify: `backend/tests/test_ingest.py`
+
+**Why:** Spec §6.2 ① 明确要求：硬件传视频但没传 `auto_caption` 时，服务端要自己跑 FFmpeg 抽帧 + 视觉模型生成描述；带了 `auto_caption` 就跳过。Task 7（frame_extractor）和 Task 8（vision）已经写好，这一步把它们接进 ingest 端点。
+
+- [ ] **Step 1: 写失败测试（验证无 caption 触发 vision）**
+
+Append to `backend/tests/test_ingest.py`:
+
+```python
+def test_ingest_clip_without_caption_calls_vision(client, demo_family, monkeypatch, tmp_path):
+    # 用真 ffmpeg 抽帧需要真视频；此处把 frame_extractor + vision 都注入 fake
+    fake_calls = {"frames": [], "captions": []}
+
+    def fake_extract(video_path, output_dir, every_n_seconds, ffmpeg_bin):
+        fake_calls["frames"].append(video_path)
+        # 模拟产出一帧
+        f = tmp_path / "frame.jpg"
+        f.write_bytes(b"\xff\xd8\xff\xe0")
+        return [str(f)]
+
+    def fake_caption(image_path, client, prompt=None):
+        fake_calls["captions"].append(image_path)
+        return "小明走在三里屯"
+
+    from app.routers import ingest as ingest_router
+    monkeypatch.setattr(ingest_router, "extract_keyframes", fake_extract)
+    monkeypatch.setattr(ingest_router, "caption_image", fake_caption)
+    monkeypatch.setattr(ingest_router, "get_vision_client", lambda: object())
+
+    payload = {
+        "source": "camera",
+        "file_path": "/tmp/clip2.mp4",
+        "captured_at": "2026-05-02T15:00:00",
+        # no auto_caption -> should trigger vision
+    }
+    r = client.post("/ingest/clip", json=payload)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["auto_caption"] == "小明走在三里屯"
+    assert len(fake_calls["frames"]) == 1
+    assert len(fake_calls["captions"]) == 1
+
+
+def test_ingest_clip_with_caption_skips_vision(client, demo_family, monkeypatch):
+    called = {"vision": 0}
+
+    def fake_extract(*a, **k):
+        called["vision"] += 1
+        return []
+
+    def fake_caption(*a, **k):
+        called["vision"] += 1
+        return "x"
+
+    from app.routers import ingest as ingest_router
+    monkeypatch.setattr(ingest_router, "extract_keyframes", fake_extract)
+    monkeypatch.setattr(ingest_router, "caption_image", fake_caption)
+
+    payload = {
+        "source": "camera",
+        "file_path": "/tmp/clip3.mp4",
+        "captured_at": "2026-05-02T16:00:00",
+        "auto_caption": "前端已经写好了",
+    }
+    r = client.post("/ingest/clip", json=payload)
+    assert r.status_code == 201
+    assert r.json()["auto_caption"] == "前端已经写好了"
+    assert called["vision"] == 0
+```
+
+- [ ] **Step 2: 运行测试验证失败**
+
+Run: `pytest tests/test_ingest.py::test_ingest_clip_without_caption_calls_vision -v`
+Expected: 测试报 AttributeError 或 caption 是 None
+
+- [ ] **Step 3: 改造 ingest 路由接通 vision pipeline**
+
+Replace the ingest_clip handler in `backend/app/routers/ingest.py` (keep ingest_social as-is):
+
+```python
+import tempfile
+from pathlib import Path
+
+from app.config import get_settings
+from app.services.frame_extractor import extract_keyframes
+from app.services.vision import caption_image, AnthropicVisionClient
+
+
+def get_vision_client():
+    """Overridable in tests via monkeypatch."""
+    return AnthropicVisionClient(api_key=get_settings().anthropic_api_key)
+
+
+def _auto_caption_from_video(file_path: str) -> str:
+    """抽 1-3 帧，每帧描述一句，拼成一段。失败时返回空串（让上游决定如何处理）。"""
+    try:
+        settings = get_settings()
+        with tempfile.TemporaryDirectory(dir=settings.data_dir if Path(settings.data_dir).exists() else None) as tmp:
+            frames = extract_keyframes(
+                video_path=file_path,
+                output_dir=tmp,
+                every_n_seconds=2,
+                ffmpeg_bin=settings.ffmpeg_bin,
+            )
+            client = get_vision_client()
+            captions = [caption_image(f, client) for f in frames[:3]]
+        return " ".join(c for c in captions if c).strip()
+    except Exception as e:
+        # 24h demo 容错：vision 失败不阻塞入库，留给小辈手动补
+        return f"[视觉描述失败: {type(e).__name__}]"
+
+
+@router.post("/clip", response_model=ClipOut, status_code=201)
+def ingest_clip(payload: IngestClipIn, request: Request):
+    engine = _engine_from_request(request)
+
+    auto_caption = payload.auto_caption
+    if not auto_caption and payload.source == "camera":
+        auto_caption = _auto_caption_from_video(payload.file_path)
+
+    with session_scope(engine) as s:
+        clip = RawClip(
+            source=payload.source,
+            file_path=payload.file_path,
+            captured_at=payload.captured_at,
+            auto_caption=auto_caption,
+        )
+        s.add(clip); s.flush()
+        return ClipOut(
+            id=clip.id, source=clip.source, file_path=clip.file_path,
+            captured_at=clip.captured_at, auto_caption=clip.auto_caption,
+            visibility=clip.visibility,
+        )
+```
+
+- [ ] **Step 4: 运行所有 ingest 测试验证通过**
+
+Run: `pytest tests/test_ingest.py -v`
+Expected: 5 passed（原 3 个 + 新 2 个）
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/routers/ingest.py tests/test_ingest.py
+git commit -m "feat(backend): /ingest/clip auto-runs FFmpeg+vision when no caption provided"
 ```
 
 ---
@@ -1803,6 +1967,36 @@ def test_today_junior_sees_all_paragraphs(client, demo_family, engine):
     assert len(paragraphs) == 2
 
 
+def test_today_junior_includes_comments(client, demo_family, engine):
+    junior, senior, fam = demo_family
+    _seed_diary(engine, fam.id, "published")
+    from app.models import Comment
+    with session_scope(engine) as s:
+        d = s.query(Diary).first()
+        s.add(Comment(diary_id=d.id, author_id=senior.id, content="想你了"))
+        s.add(Comment(diary_id=d.id, author_id=senior.id, content="吃饱点"))
+
+    r = client.get("/diary/today?role=junior")
+    assert r.status_code == 200
+    comments = r.json()["comments"]
+    assert len(comments) == 2
+    assert comments[0]["content"] == "想你了"
+
+
+def test_today_senior_excludes_comments_field_or_empty(client, demo_family, engine):
+    """长辈看自己说过的话没意义，comments 留空（也可以由前端忽略）"""
+    junior, senior, fam = demo_family
+    _seed_diary(engine, fam.id, "published")
+    from app.models import Comment
+    with session_scope(engine) as s:
+        d = s.query(Diary).first()
+        s.add(Comment(diary_id=d.id, author_id=senior.id, content="x"))
+
+    r = client.get("/diary/today?role=senior")
+    assert r.status_code == 200
+    assert r.json()["comments"] == []
+
+
 def test_today_senior_gets_404_if_not_published(client, demo_family, engine):
     _, _, fam = demo_family
     _seed_diary(engine, fam.id, "draft")
@@ -1841,15 +2035,33 @@ def get_today(request: Request, role: str = Query(..., pattern="^(junior|senior)
             raise HTTPException(404, "no diary for today")
 
         out = _to_out(d)
-        if role == "senior":
+
+        if role == "junior":
+            from app.models import Comment
+            from app.schemas import CommentOut
+            comments = (
+                s.query(Comment)
+                .filter(Comment.diary_id == d.id)
+                .order_by(Comment.created_at)
+                .all()
+            )
+            out.comments = [
+                CommentOut(
+                    id=c.id, diary_id=c.diary_id, author_id=c.author_id,
+                    content=c.content, audio_url=c.audio_url, created_at=c.created_at,
+                ) for c in comments
+            ]
+        else:  # senior
             out.paragraphs = [p for p in out.paragraphs if not p.hidden]
+            # comments 留空：长辈看自己写的留言无意义
+
         return out
 ```
 
 - [ ] **Step 3: 运行测试验证通过**
 
 Run: `pytest tests/test_diary_today.py -v`
-Expected: 3 passed
+Expected: 5 passed
 
 - [ ] **Step 4: Commit**
 
@@ -2713,41 +2925,42 @@ from app.models import Comment, QaLog
 from app.db import session_scope
 
 
-class FakeLLM:
-    """一个 client 应付所有 LLM 场景：日记、意图、Q&A。"""
-    def __init__(self):
-        self.mode = "diary"  # 测试内切换
-
+class FakeDiaryClient:
+    """只用于日记生成"""
     def generate(self, prompt):
-        if "json" in prompt.lower() or "日记" in prompt and "paragraphs" in prompt.lower():
-            return (
-                '{"title":"小明的一天",'
-                '"paragraphs":['
-                '{"id":"p1","text":"小明中午去了三里屯。","source_clip_ids":[1]},'
-                '{"id":"p2","text":"和朋友吃了火锅。","source_clip_ids":[2]}'
-                '],"cover_clip_ids":[1,2]}'
-            )
-        if "question" in prompt or "comment" in prompt and "老人说的话" in prompt:
-            # intent classifier
-            if "吃什么" in prompt or "谁" in prompt:
-                return "question"
-            return "comment"
-        if "长辈的问题" in prompt or "日记里没有说" in prompt:
-            return "和两个朋友一起。"
-        return '{"title":"t","paragraphs":[],"cover_clip_ids":[]}'
+        return (
+            '{"title":"小明的一天",'
+            '"paragraphs":['
+            '{"id":"p1","text":"小明中午去了三里屯。","source_clip_ids":[1]},'
+            '{"id":"p2","text":"和朋友吃了火锅。","source_clip_ids":[2]}'
+            '],"cover_clip_ids":[1,2]}'
+        )
+
+
+class FakeIntentClient:
+    """根据问句关键词判断；包含 '？' 或常见问询词 → question，否则 comment"""
+    def generate(self, prompt):
+        if "？" in prompt or "?" in prompt or "几点" in prompt or "什么" in prompt or "谁" in prompt:
+            return "question"
+        return "comment"
+
+
+class FakeQAClient:
+    """对所有提问统一返回一个固定温暖的答案"""
+    def generate(self, prompt):
+        return "和两个朋友一起。"
 
 
 def test_full_demo_flow(client, demo_family, engine, monkeypatch):
     junior, senior, fam = demo_family
-    fake = FakeLLM()
 
     from app.routers import diary as diary_router
     from app.routers import interactions as interactions_router
-    monkeypatch.setattr(diary_router, "get_diary_client", lambda: fake)
-    monkeypatch.setattr(interactions_router, "get_intent_client", lambda: fake)
-    monkeypatch.setattr(interactions_router, "get_qa_client", lambda: fake)
+    monkeypatch.setattr(diary_router, "get_diary_client", lambda: FakeDiaryClient())
+    monkeypatch.setattr(interactions_router, "get_intent_client", lambda: FakeIntentClient())
+    monkeypatch.setattr(interactions_router, "get_qa_client", lambda: FakeQAClient())
 
-    # 1. ingest camera clip
+    # 1. ingest camera clip (带 caption 跳过 vision)
     r = client.post("/ingest/clip", json={
         "source": "camera", "file_path": "/v1.mp4",
         "captured_at": datetime.combine(date.today(), datetime.min.time())
@@ -2773,6 +2986,7 @@ def test_full_demo_flow(client, demo_family, engine, monkeypatch):
     r = client.get("/diary/today?role=junior")
     assert r.status_code == 200
     assert r.json()["status"] == "draft"
+    assert r.json()["comments"] == []
 
     # 5. junior hides p2
     paragraphs = r.json()["paragraphs"]
@@ -2791,16 +3005,23 @@ def test_full_demo_flow(client, demo_family, engine, monkeypatch):
 
     # 8. senior asks a question
     r = client.post(f"/diary/{diary_id}/ask",
-                    json={"question": "他吃什么了？", "author_id": senior.id})
+                    json={"question": "他和谁一起吃饭？", "author_id": senior.id})
     assert r.status_code == 200
     assert r.json()["intent"] == "question"
-    assert r.json()["answer"]
+    assert r.json()["answer"] == "和两个朋友一起。"
 
     # 9. senior leaves a comment
     r = client.post(f"/diary/{diary_id}/ask",
                     json={"question": "告诉他妈妈想他了", "author_id": senior.id})
     assert r.status_code == 200
     assert r.json()["intent"] == "comment"
+
+    # 10. junior 重新拉 today，应该看到妈妈的留言（情感闭环）
+    r = client.get("/diary/today?role=junior")
+    assert r.status_code == 200
+    comments = r.json()["comments"]
+    assert len(comments) == 1
+    assert comments[0]["content"] == "告诉他妈妈想他了"
 
     with session_scope(engine) as s:
         assert s.query(QaLog).count() == 1
@@ -2894,12 +3115,23 @@ git commit -m "feat(backend): add seed script, end-to-end integration test, and 
 | §2.1 角色与关系（junior/senior/family） | Task 4, Task 6 | users + family 表 |
 | §2.2 AI 日记 · 每日定时生成 + 3 分钟审核 | Task 13, 15, 16 | 定时任务由前端/外部触发 `POST /diary/generate`；倒计时在前端做 |
 | §2.2 长辈端 TTS + 按住说话 | —— | 不在后端范围；前端直调浏览器/云 API |
-| §3 五层架构 | Task 7, 8, 12, 13, 14, 18, 21 | 后端覆盖②③④ |
-| §4 两端屏幕 | —— | 前端独立，不在本计划 |
+| §3 五层架构（数据源→摄取→Agent→双端） | Task 7, 8, 9b, 12, 13, 14, 18, 21 | 后端覆盖②③④三层 |
+| §4 两端屏幕 | —— | 前端独立项目，不在本计划 |
 | §5 数据模型 6 张表 | Task 4 | 完整 |
-| §6 10 个 API 端点 | Task 9, 10, 11, 13, 14, 15, 16, 17, 18, 21 | 完整 |
+| §6.1 API 一览 10 个端点 | Task 9, 9b, 10, 11, 13, 14, 15, 16, 17, 18, 21 | 完整 |
+| §6.2 ① POST /ingest/clip 无 caption 触发 vision | Task 9, **Task 9b** | Task 9b 接通 FFmpeg + vision 分支 |
+| §6.2 ② POST /ingest/social | Task 10 | |
+| §6.2 ③ GET /clips（过滤 hidden） | Task 11 | |
+| §6.3 ④ POST /diary/generate（跳过 hidden） | Task 13 | |
+| §6.3 ⑤ GET /diary/today?role= | Task 14 | junior 含 comments、senior 过滤 hidden 段并空 comments |
+| §6.3 ⑥ PATCH /diary/:id（已发布返 409） | Task 15 | |
+| §6.3 ⑦ POST /diary/:id/publish（已发布返 409） | Task 16 | |
+| §6.3 ⑧ GET /diary/history | Task 17 | |
+| §6.4 ⑨ POST /diary/:id/comment | Task 18 | |
+| §6.4 ⑩ POST /diary/:id/ask（intent 分流） | Task 19, 20, 21 | |
+| §6.5 长辈留言回到小辈端的情感闭环 | Task 14（junior 拉 comments）+ Task 23 集成测试 step 10 | |
 | §7 筛选机制（事前/事后） | Task 11 (visibility filter), Task 13 (generate skips hidden), Task 14 (senior filters hidden) | 完整 |
-| §8 技术栈 FastAPI/SQLAlchemy/... | Task 1, 3, 7, 8 | 完整 |
-| §10 风险 · LLM 失败兜底 | Task 12 (空素材 fallback), RUNBOOK | 最小可用 |
+| §8 技术栈 FastAPI/SQLAlchemy/anthropic SDK | Task 1, 3, 7, 8, 12 | 完整 |
+| §10 风险 · LLM 失败兜底 | Task 12 (空素材 fallback), Task 9b (vision 失败用兜底字符串), RUNBOOK | |
 | §11 YAGNI（不做注册/多家庭/OAuth） | —— | 全程没写这些 |
 
