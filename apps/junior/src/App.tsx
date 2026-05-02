@@ -6,6 +6,7 @@ import SeniorView from './pages/SeniorView'
 import HistoryPage from './pages/HistoryPage'
 import MessagesPage from './pages/MessagesPage'
 import type { FeedItem } from './filter/images'
+import type { GenerateSummaryResult } from './api/agent'
 
 type View = 'home' | 'filter' | 'audit' | 'history' | 'messages'
 
@@ -18,10 +19,10 @@ export default function App() {
 
 function JuniorApp() {
   const [view, setView] = useState<View>('home')
-  const [kept, setKept] = useState<FeedItem[]>([])
+  const [summary, setSummary] = useState<GenerateSummaryResult | null>(null)
 
-  const handleProceed = (items: FeedItem[]) => {
-    setKept(items)
+  const handleProceed = (_items: FeedItem[], result: GenerateSummaryResult) => {
+    setSummary(result)
     setView('audit')
   }
 
@@ -49,7 +50,7 @@ function JuniorApp() {
                 <button
                   key={s.key}
                   onClick={() => setView(s.key)}
-                  disabled={s.key === 'audit' && kept.length === 0}
+                  disabled={s.key === 'audit' && summary === null}
                   className={`group flex flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left transition disabled:opacity-40 ${
                     active ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                   }`}
@@ -83,7 +84,9 @@ function JuniorApp() {
           />
         )}
         {view === 'filter' && <FilterPage onProceed={handleProceed} />}
-        {view === 'audit' && <AuditPage kept={kept} onBack={() => setView('filter')} />}
+        {view === 'audit' && summary && (
+          <AuditPage summary={summary} onBack={() => setView('filter')} />
+        )}
         {view === 'history' && <HistoryPage onBack={() => setView('home')} />}
         {view === 'messages' && <MessagesPage onBack={() => setView('home')} />}
       </main>
