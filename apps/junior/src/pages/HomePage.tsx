@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
-import { fetchMessages, type Message } from '../api/messages'
-import { JUNIOR_USER_ID } from '../api/client'
+import { loadElderMessages } from '../api/mockMessages'
 
 type Props = {
   onEnterFilter: () => void
@@ -9,20 +7,9 @@ type Props = {
 }
 
 export default function HomePage({ onEnterFilter, onEnterHistory, onEnterMessages }: Props) {
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [lastMessage, setLastMessage] = useState<Message | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchMessages({ user_id: JUNIOR_USER_ID, limit: 1 }).then((res) => {
-      if (cancelled) return
-      setUnreadCount(res.unread_count)
-      setLastMessage(res.messages[0] ?? null)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const messages = loadElderMessages()
+  const unreadCount = messages.filter((m) => m.unread).length
+  const lastMessage = messages[0]
 
   const today = new Date()
   const weekday = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][today.getDay()]
@@ -41,10 +28,12 @@ export default function HomePage({ onEnterFilter, onEnterHistory, onEnterMessage
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 pb-10 pt-2">
+        {/* 主入口:信件感卡片,左边一条暖色书脊,右边奶油纸 */}
         <button
           onClick={onEnterFilter}
           className="group flex w-full items-stretch overflow-hidden rounded-2xl border border-amber-200/70 bg-white text-left shadow-sm transition hover:shadow-md active:translate-y-px"
         >
+          {/* 左侧色条模拟信封封口/书脊 */}
           <div className="w-2 flex-none bg-amber-600" aria-hidden="true" />
           <div className="flex flex-1 items-center gap-4 p-5 md:p-6">
             <div className="flex h-14 w-14 flex-none items-center justify-center rounded-xl bg-amber-100 text-amber-700 md:h-16 md:w-16">
@@ -70,7 +59,9 @@ export default function HomePage({ onEnterFilter, onEnterHistory, onEnterMessage
           </div>
         </button>
 
+        {/* 下面两个并排的次入口 */}
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+          {/* 妈妈的留言 */}
           <button
             onClick={onEnterMessages}
             className="group flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-amber-200 hover:shadow-md active:translate-y-px"
@@ -110,6 +101,7 @@ export default function HomePage({ onEnterFilter, onEnterHistory, onEnterMessage
             )}
           </button>
 
+          {/* 过去的日记 */}
           <button
             onClick={onEnterHistory}
             className="group flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-5 text-left shadow-sm transition hover:border-amber-200 hover:shadow-md active:translate-y-px"

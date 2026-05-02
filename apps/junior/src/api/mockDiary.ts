@@ -1,9 +1,9 @@
-// 纯前端 mock 日记种子,用于在后端还没接入时快速测试长辈端 TTS/字幕链路
-// 走和 AuditPage 相同的 publishDiary 入口,保证写入 localStorage 的 shape 一致
+// 纯前端 mock 日记,用于在后端还没接入时快速测试长辈端 TTS/字幕链路
+// 直接写入 localStorage 后触发 storage 事件,SeniorView 会自动刷新
 
-import { loadImages } from '../filter/images'
-import { publishDiary, type DiaryItem } from './diary'
-import { JUNIOR_USER_ID } from './client'
+import type { FeedItem } from '../filter/images'
+
+const STORAGE_KEY = 'nks-diary'
 
 const MOCK_NARRATION =
   '今天下午五点多，小明和同事走到南山脚下散步，秋风吹得人很舒服。' +
@@ -12,34 +12,46 @@ const MOCK_NARRATION =
   '回家路上他经过一个水果摊，顺手买了一袋橘子，说是明天带去办公室分给大家。' +
   '妈妈，他今天过得挺好的，您放心。'
 
-function buildMockItems(): DiaryItem[] {
-  const images = loadImages().slice(0, 3)
-  if (images.length === 0) {
-    // 没本地图片也得能跑
-    return [{ item_id: 'mock-placeholder', type: 'image', content: '' }]
+const MOCK_DIARY = {
+  date: '2026 年 5 月 2 日 · 星期六',
+  title: '小明在南山散步的一天',
+  publishedAt: Date.now(),
+  narration: MOCK_NARRATION,
+  items: [] as Array<Pick<FeedItem, 'kind' | 'id'> & Record<string, string>>,
+}
+
+// 从 assets/images/ 里挑前几张作为图片素材。没有就走空数组(字幕 + TTS 仍能跑)。
+async function collectMockItems() {
+  try {
+    const mods = import.meta.glob(
+      '../assets/images/*.{jpg,jpeg,png,webp,gif,avif,JPG,JPEG,PNG,WEBP,GIF,AVIF}',
+      { eager: true, query: '?url', import: 'default' },
+    )
+    const entries = Object.entries(mods) as [string, string][]
+    return entries.slice(0, 3).map(([path, url], i) => {
+      const name = path.split('/').pop() ?? `mock-${i}`
+      return { kind: 'image', id: name, url }
+    })
+  } catch {
+    return []
   }
-  return images.map((it) => ({ item_id: it.id, type: 'image' as const, content: it.url }))
 }
 
 export async function loadMockDiary() {
-  const items = buildMockItems()
-  await publishDiary({
-    summary_id: `sum_mock_${Date.now()}`,
-    user_id: JUNIOR_USER_ID,
-    _mock_items: items,
-    _mock_title: '小明在南山散步的一天',
-    _mock_narration: MOCK_NARRATION,
-    _mock_date: new Date().toISOString().slice(0, 10),
-  })
-  // publishDiary 里会 localStorage.setItem,但同 tab 不触发 storage 事件,手动派一次
-  const raw = localStorage.getItem('nks-diary')
-  if (raw) {
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: 'nks-diary',
-        newValue: raw,
-        storageArea: localStorage,
-      }),
-    )
+  const items = await collectMockItems()
+  const diary = {
+    ...MOCK_DIARY,
+    publishedAt: Date.now(),
+    items: items.length > 0 ? items : [{ kind: 'image', id: 'mock', url: '' }],
   }
+  const payload = JSON.stringify(diary)
+  localStorage.setItem(STORAGE_KEY, payload)
+  // 同一个 tab 写 localStorage 不会触发 storage 事件,手动派一次
+  window.dispatchEvent(
+    new StorageEvent('storage', {
+      key: STORAGE_KEY,
+      newValue: payload,
+      storageArea: localStorage,
+    }),
+  )
 }
