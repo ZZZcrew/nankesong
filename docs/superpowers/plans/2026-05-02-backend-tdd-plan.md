@@ -6,7 +6,7 @@
 
 **Architecture:** 单进程同步 FastAPI 服务。外部大模型调用（视觉描述、日记生成、意图判定、问答）通过依赖注入传入 client，测试里注入 Fake 避免真调 API。数据落本地 SQLite，视频帧落本地目录。前端、Insta360 采集器、TTS/ASR 均在本计划之外（前端独立项目；相机由硬件队员直接打 `POST /ingest/clip`；TTS/ASR 由前端直接调浏览器 API 或云 API）。
 
-**Tech Stack:** Python 3.11+ · FastAPI · SQLAlchemy 2.x (sync) · Pydantic v2 · pytest · anthropic SDK · FFmpeg (subprocess)
+**Tech Stack:** Python 3.11+ · FastAPI · SQLAlchemy 2.x (sync) · Pydantic v2 · pytest · anthropic SDK · **OpenCV (cv2)** 做视频抽帧
 
 **Spec 依据：** `docs/superpowers/specs/2026-05-02-ai-family-diary-design.md`
 
@@ -34,7 +34,7 @@ backend/
 │   │   └── interactions.py             # /diary/:id/comment、/diary/:id/ask
 │   └── services/
 │       ├── __init__.py
-│       ├── frame_extractor.py          # FFmpeg 抽帧
+│       ├── frame_extractor.py          # OpenCV 抽帧（cv2.VideoCapture）
 │       ├── vision.py                   # 帧图 → 描述文本
 │       ├── diary_generator.py          # 素材 → 日记 + 选图
 │       ├── intent_classifier.py        # 文本 → question / comment
@@ -78,7 +78,7 @@ backend/
 4. Task 4 · SQLAlchemy 6 张表
 5. Task 5 · Pydantic schemas（含 DiaryOut.comments 字段）
 6. Task 6 · pytest 公共 fixture
-7. Task 7 · FFmpeg 抽帧 service
+7. Task 7 · OpenCV 抽帧 service
 8. Task 8 · 视觉描述 service
 9. Task 9 · `POST /ingest/clip`（最小版）
 9b. Task 9b · 接通 `/ingest/clip` 的"无 caption 自动跑视觉"分支
@@ -144,6 +144,8 @@ dependencies = [
     "python-multipart>=0.0.12",
     "anthropic>=0.40",
     "httpx>=0.27",
+    "opencv-python>=4.10",
+    "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
@@ -164,7 +166,6 @@ Create `backend/.env.example`:
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 DATA_DIR=./data
-FFMPEG_BIN=ffmpeg
 ```
 
 Create `backend/.gitignore`:
@@ -239,24 +240,20 @@ from app.config import Settings
 def test_settings_reads_env_vars(monkeypatch, tmp_path):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-key")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("FFMPEG_BIN", "/usr/bin/ffmpeg")
 
     settings = Settings()
 
     assert settings.anthropic_api_key == "sk-test-key"
     assert settings.data_dir == str(tmp_path)
-    assert settings.ffmpeg_bin == "/usr/bin/ffmpeg"
 
 
 def test_settings_has_defaults(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.delenv("DATA_DIR", raising=False)
-    monkeypatch.delenv("FFMPEG_BIN", raising=False)
 
     settings = Settings()
 
     assert settings.data_dir == "./data"
-    assert settings.ffmpeg_bin == "ffmpeg"
 ```
 
 - [ ] **Step 2: 运行测试验证失败**
@@ -275,7 +272,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     anthropic_api_key: str
     data_dir: str = "./data"
-    ffmpeg_bin: str = "ffmpeg"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -874,48 +870,70 @@ git commit -m "test(backend): add shared pytest fixtures (db_session, demo_famil
 
 ---
 
-## Task 7: FFmpeg 抽帧 service
+## Task 7: OpenCV 抽帧 service
 
 **Files:**
 - Create: `backend/app/services/__init__.py`
 - Create: `backend/app/services/frame_extractor.py`
-- Create: `backend/tests/fixtures/sample.mp4`（用 ffmpeg 生成一段 2 秒的纯色测试视频）
 - Create: `backend/tests/test_frame_extractor.py`
 
-- [ ] **Step 1: 生成测试用 sample.mp4**
+**Why OpenCV 而不是 FFmpeg：** 不依赖系统级安装，`pip install opencv-python` 就行；跨平台一致；性能足够——抽帧这种操作 cv2 内部也是用 FFmpeg 实现，但对外暴露成纯 Python API。
 
-Run (一次性，生成 fixture)：
-
-```bash
-mkdir -p tests/fixtures
-ffmpeg -f lavfi -i "color=c=red:size=320x240:d=2" -y tests/fixtures/sample.mp4
-```
-
-Expected: `tests/fixtures/sample.mp4` 存在，ffprobe 可读。
-
-- [ ] **Step 2: 写失败的 frame_extractor 测试**
+- [ ] **Step 1: 写失败的 frame_extractor 测试**
 
 Create `backend/tests/test_frame_extractor.py`:
 
 ```python
 from pathlib import Path
+import numpy as np
+import cv2
 import pytest
 
 from app.services.frame_extractor import extract_keyframes
 
 
-def test_extract_keyframes_returns_image_paths(tmp_path):
-    sample = Path(__file__).parent / "fixtures" / "sample.mp4"
+def _make_sample_video(path: Path, seconds: int = 3, fps: int = 10, size=(320, 240)):
+    """用 cv2 写一段纯色视频作为测试 fixture。"""
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    w, h = size
+    writer = cv2.VideoWriter(str(path), fourcc, fps, (w, h))
+    for i in range(seconds * fps):
+        # 每秒颜色渐变，便于人眼核验
+        color = (i * 5 % 255, 100, 200)
+        frame = np.full((h, w, 3), color, dtype=np.uint8)
+        writer.write(frame)
+    writer.release()
+
+
+@pytest.fixture
+def sample_video(tmp_path):
+    video = tmp_path / "sample.mp4"
+    _make_sample_video(video, seconds=3)
+    return str(video)
+
+
+def test_extract_keyframes_returns_image_paths(sample_video, tmp_path):
+    out = tmp_path / "frames"
     frames = extract_keyframes(
-        video_path=str(sample),
-        output_dir=str(tmp_path),
+        video_path=sample_video,
+        output_dir=str(out),
         every_n_seconds=1,
-        ffmpeg_bin="ffmpeg",
     )
     assert len(frames) >= 1
     for f in frames:
         assert Path(f).exists()
         assert f.endswith(".jpg")
+
+
+def test_extract_keyframes_samples_at_interval(sample_video, tmp_path):
+    """3 秒视频，每 1 秒抽一帧 → 期望 2-3 帧（边界根据 fps 可能波动）"""
+    out = tmp_path / "frames"
+    frames = extract_keyframes(
+        video_path=sample_video,
+        output_dir=str(out),
+        every_n_seconds=1,
+    )
+    assert 2 <= len(frames) <= 4
 
 
 def test_extract_keyframes_missing_video_raises(tmp_path):
@@ -924,34 +942,47 @@ def test_extract_keyframes_missing_video_raises(tmp_path):
             video_path="/does/not/exist.mp4",
             output_dir=str(tmp_path),
             every_n_seconds=1,
-            ffmpeg_bin="ffmpeg",
+        )
+
+
+def test_extract_keyframes_unreadable_video_raises(tmp_path):
+    bad = tmp_path / "bad.mp4"
+    bad.write_bytes(b"not a real video")
+    with pytest.raises(RuntimeError, match="cannot open"):
+        extract_keyframes(
+            video_path=str(bad),
+            output_dir=str(tmp_path / "frames"),
+            every_n_seconds=1,
         )
 ```
 
-- [ ] **Step 3: 运行测试验证失败**
+- [ ] **Step 2: 运行测试验证失败**
 
 Run: `pytest tests/test_frame_extractor.py -v`
 Expected: `ModuleNotFoundError: No module named 'app.services.frame_extractor'`
 
-- [ ] **Step 4: 写 frame_extractor.py**
+- [ ] **Step 3: 写 frame_extractor.py**
 
 Create `backend/app/services/__init__.py`: (empty)
 
 Create `backend/app/services/frame_extractor.py`:
 
 ```python
-import subprocess
 from pathlib import Path
 from uuid import uuid4
+
+import cv2
 
 
 def extract_keyframes(
     video_path: str,
     output_dir: str,
     every_n_seconds: int = 2,
-    ffmpeg_bin: str = "ffmpeg",
 ) -> list[str]:
-    """Extract one frame every N seconds; return list of JPG paths."""
+    """Sample one frame every N seconds from a video; write as JPG.
+
+    Returns list of absolute JPG paths sorted by timestamp.
+    """
     video = Path(video_path)
     if not video.exists():
         raise FileNotFoundError(f"video not found: {video_path}")
@@ -960,32 +991,46 @@ def extract_keyframes(
     out.mkdir(parents=True, exist_ok=True)
     prefix = uuid4().hex[:8]
 
-    cmd = [
-        ffmpeg_bin, "-hide_banner", "-loglevel", "error",
-        "-i", str(video),
-        "-vf", f"fps=1/{every_n_seconds}",
-        "-q:v", "2",
-        str(out / f"{prefix}_%03d.jpg"),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed: {result.stderr}")
+    cap = cv2.VideoCapture(str(video))
+    if not cap.isOpened():
+        raise RuntimeError(f"cannot open video: {video_path}")
 
-    return sorted(str(p) for p in out.glob(f"{prefix}_*.jpg"))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    frame_interval = max(1, int(round(fps * every_n_seconds)))
+    total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+
+    saved: list[str] = []
+    try:
+        idx = 0
+        sample_idx = 0
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            if idx % frame_interval == 0:
+                path = out / f"{prefix}_{sample_idx:03d}.jpg"
+                cv2.imwrite(str(path), frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                saved.append(str(path))
+                sample_idx += 1
+            idx += 1
+            if total and idx >= total:
+                break
+    finally:
+        cap.release()
+
+    return saved
 ```
 
-- [ ] **Step 5: 运行测试验证通过**
+- [ ] **Step 4: 运行测试验证通过**
 
 Run: `pytest tests/test_frame_extractor.py -v`
-Expected: 2 passed
+Expected: 4 passed
 
-**注意：** 需本机已安装 ffmpeg 并在 PATH 中。
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add app/services/__init__.py app/services/frame_extractor.py tests/test_frame_extractor.py tests/fixtures/sample.mp4
-git commit -m "feat(backend): add FFmpeg frame extractor service"
+git add app/services/__init__.py app/services/frame_extractor.py tests/test_frame_extractor.py
+git commit -m "feat(backend): add OpenCV frame extractor service"
 ```
 
 ---
@@ -1234,7 +1279,7 @@ git commit -m "feat(backend): POST /ingest/clip writes raw_clips row"
 - Modify: `backend/app/routers/ingest.py`
 - Modify: `backend/tests/test_ingest.py`
 
-**Why:** Spec §6.2 ① 明确要求：硬件传视频但没传 `auto_caption` 时，服务端要自己跑 FFmpeg 抽帧 + 视觉模型生成描述；带了 `auto_caption` 就跳过。Task 7（frame_extractor）和 Task 8（vision）已经写好，这一步把它们接进 ingest 端点。
+**Why:** Spec §6.2 ① 明确要求：硬件传视频但没传 `auto_caption` 时，服务端要自己用 OpenCV 抽帧 + 视觉模型生成描述；带了 `auto_caption` 就跳过。Task 7（frame_extractor）和 Task 8（vision）已经写好，这一步把它们接进 ingest 端点。
 
 - [ ] **Step 1: 写失败测试（验证无 caption 触发 vision）**
 
@@ -1242,10 +1287,10 @@ Append to `backend/tests/test_ingest.py`:
 
 ```python
 def test_ingest_clip_without_caption_calls_vision(client, demo_family, monkeypatch, tmp_path):
-    # 用真 ffmpeg 抽帧需要真视频；此处把 frame_extractor + vision 都注入 fake
+    # 用真 OpenCV 抽帧需要真视频；此处把 frame_extractor + vision 都注入 fake
     fake_calls = {"frames": [], "captions": []}
 
-    def fake_extract(video_path, output_dir, every_n_seconds, ffmpeg_bin):
+    def fake_extract(video_path, output_dir, every_n_seconds):
         fake_calls["frames"].append(video_path)
         # 模拟产出一帧
         f = tmp_path / "frame.jpg"
@@ -1334,7 +1379,6 @@ def _auto_caption_from_video(file_path: str) -> str:
                 video_path=file_path,
                 output_dir=tmp,
                 every_n_seconds=2,
-                ffmpeg_bin=settings.ffmpeg_bin,
             )
             client = get_vision_client()
             captions = [caption_image(f, client) for f in frames[:3]]
@@ -1376,7 +1420,7 @@ Expected: 5 passed（原 3 个 + 新 2 个）
 
 ```bash
 git add app/routers/ingest.py tests/test_ingest.py
-git commit -m "feat(backend): /ingest/clip auto-runs FFmpeg+vision when no caption provided"
+git commit -m "feat(backend): /ingest/clip auto-runs OpenCV+vision when no caption provided"
 ```
 
 ---
@@ -3119,7 +3163,7 @@ git commit -m "feat(backend): add seed script, end-to-end integration test, and 
 | §4 两端屏幕 | —— | 前端独立项目，不在本计划 |
 | §5 数据模型 6 张表 | Task 4 | 完整 |
 | §6.1 API 一览 10 个端点 | Task 9, 9b, 10, 11, 13, 14, 15, 16, 17, 18, 21 | 完整 |
-| §6.2 ① POST /ingest/clip 无 caption 触发 vision | Task 9, **Task 9b** | Task 9b 接通 FFmpeg + vision 分支 |
+| §6.2 ① POST /ingest/clip 无 caption 触发 vision | Task 9, **Task 9b** | Task 9b 接通 OpenCV + vision 分支 |
 | §6.2 ② POST /ingest/social | Task 10 | |
 | §6.2 ③ GET /clips（过滤 hidden） | Task 11 | |
 | §6.3 ④ POST /diary/generate（跳过 hidden） | Task 13 | |

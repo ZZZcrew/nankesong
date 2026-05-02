@@ -157,7 +157,7 @@ qa_logs (
 
 #### ① POST `/ingest/clip`
 
-- **用途**：硬件队员把 Insta360 的视频片段上传到服务器后，调用这个接口把素材入库。服务端根据 `file_path` 去调 FFmpeg 抽关键帧、调视觉模型生成自然语言描述，最终写入 `raw_clips` 表，默认 `visibility='visible'`。
+- **用途**：硬件队员把 Insta360 的视频片段上传到服务器后，调用这个接口把素材入库。服务端根据 `file_path` 用 OpenCV 抽关键帧、调视觉模型生成自然语言描述，最终写入 `raw_clips` 表，默认 `visibility='visible'`。
 - **调用时机**：
   - **真实使用**：硬件端 SDK 在剪出一个"场景段"后调用（可能几分钟一次）
   - **Demo**：演示开始前，硬件队员把当天拍的所有素材预先通过这个接口全部上传（避免现场跑 pipeline 翻车）
@@ -355,7 +355,7 @@ Demo 时展示"事后删段"（视觉冲击强），口播补一句"更彻底的
 | 前端 | React + Vite + Tailwind | SPA，两端共享组件 |
 | 后端 | **Python + FastAPI** | 单进程，异步支持好，与 LLM/FFmpeg 生态契合 |
 | 数据库 | SQLite（本地文件） | 零部署；用 SQLAlchemy 或直连 |
-| 视频抽帧 | FFmpeg（subprocess 调用） | 命令行 |
+| 视频抽帧 | **OpenCV (cv2)** | Python 纯包，不依赖系统级 ffmpeg，`pip install opencv-python` 即可；用 `VideoCapture` + `imwrite` 抽关键帧 |
 | 视觉理解 | Claude Sonnet 4.6 / GPT-4o | 多模态，用 anthropic 或 openai SDK |
 | 日记生成 | Claude Sonnet 4.6 | 中文叙事强；带 prompt caching |
 | ASR | 浏览器 `SpeechRecognition` API | Chrome 内置，免费，前端直调 |
