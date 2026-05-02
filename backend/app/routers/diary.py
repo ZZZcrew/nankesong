@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.db import session_scope
 from app.deps import engine_from_request
 from app.models import Diary, Family, RawClip
-from app.schemas import DiaryOut, DiaryParagraph
+from app.schemas import DiaryOut, DiaryParagraph, DiaryPatchIn
 from app.services.diary_generator import generate_diary, AnthropicDiaryClient
 
 router = APIRouter(prefix="/diary", tags=["diary"])
@@ -132,3 +132,21 @@ def get_today(request: Request, role: str = Query(..., pattern="^(junior|senior)
             # comments 留空：长辈看自己写的留言无意义
 
         return out
+
+
+@router.patch("/{diary_id}", response_model=DiaryOut)
+def patch_diary(diary_id: int, payload: DiaryPatchIn, request: Request):
+    engine = engine_from_request(request)
+    with session_scope(engine) as s:
+        d = s.get(Diary, diary_id)
+        if not d:
+            raise HTTPException(404, "diary not found")
+        if d.status == "published":
+            raise HTTPException(409, "cannot edit published diary")
+
+        if payload.title is not None:
+            d.title = payload.title
+        if payload.paragraphs is not None:
+            d.body_json = [p.model_dump() for p in payload.paragraphs]
+        s.flush()
+        return _to_out(d)
