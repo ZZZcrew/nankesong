@@ -6,7 +6,7 @@ import { loadImages, type ImageItem } from '../filter/images'
 type Phase = 'swiping' | 'done'
 
 type Props = {
-  onProceed: () => void
+  onProceed: (kept: ImageItem[]) => void
 }
 
 export default function FilterPage({ onProceed }: Props) {

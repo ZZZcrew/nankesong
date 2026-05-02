@@ -3,7 +3,7 @@ import type { ImageItem } from './images'
 type Props = {
   kept: ImageItem[]
   onReset: () => void
-  onProceed: () => void
+  onProceed: (kept: ImageItem[]) => void
 }
 
 export default function Results({ kept, onReset, onProceed }: Props) {
@@ -23,17 +23,17 @@ export default function Results({ kept, onReset, onProceed }: Props) {
 
       <button
         className="submit"
-        onClick={onProceed}
-        disabled={kept.length === 0}
-      >
-        进入下一步：审核日记 →
-      </button>
-      <button
-        className="submit"
         onClick={onReset}
         style={{ background: '#374151' }}
       >
         重新筛选
+      </button>
+      <button
+        className="submit"
+        onClick={() => onProceed(kept)}
+        disabled={kept.length === 0}
+      >
+        进入下一步：预览发送 →
       </button>
     </div>
   )

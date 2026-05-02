@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import FilterPage from './pages/FilterPage'
 import AuditPage from './pages/AuditPage'
+import type { ImageItem } from './filter/images'
 
 type Step = 'filter' | 'audit'
 
 const STEPS: { key: Step; label: string; sub: string }[] = [
   { key: 'filter', label: '清理素材', sub: '上滑删除不想给妈妈看的' },
-  { key: 'audit', label: '审核日记', sub: 'AI 生成的草稿，3 分钟后自动发送' },
+  { key: 'audit', label: '预览发送', sub: '确认图片和 AI 配文' },
 ]
 
 export default function App() {
   const [step, setStep] = useState<Step>('filter')
+  const [kept, setKept] = useState<ImageItem[]>([])
+
+  const handleProceed = (images: ImageItem[]) => {
+    setKept(images)
+    setStep('audit')
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -46,12 +53,12 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 页面内容区域：flex-1 让 FilterPage 内部的 flex 布局能拉满 */}
+      {/* 页面内容 */}
       <main className="relative flex flex-1 flex-col">
         {step === 'filter' ? (
-          <FilterPage onProceed={() => setStep('audit')} />
+          <FilterPage onProceed={handleProceed} />
         ) : (
-          <AuditPage />
+          <AuditPage kept={kept} onBack={() => setStep('filter')} />
         )}
       </main>
     </div>
