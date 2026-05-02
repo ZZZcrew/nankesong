@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import agent, data
+from app.api import agent, data, messages
 from app.models import Base, engine
 
 app = FastAPI(
@@ -22,6 +22,7 @@ app.add_middleware(
 
 app.include_router(data.router, prefix="/api/v1/data", tags=["data"])
 app.include_router(agent.router, prefix="/api/v1/agent", tags=["agent"])
+app.include_router(messages.router, prefix="/api/v1", tags=["messages"])
 
 
 @app.get("/health")
